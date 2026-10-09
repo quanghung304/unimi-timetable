@@ -3,7 +3,7 @@ import { remember } from "./supabase.js";
 import * as api from "./api.js";
 import { parseWorkbook, planMerge } from "./importer.js";
 import { renderWeek, drawNowLine } from "./grid.js";
-import { toKey, fromKey, addDays, toMin, fmtMin, ddmm, mondayOf, currentWeekStart, weeklyDates } from "./dates.js";
+import { pad, toKey, fromKey, addDays, toMin, fmtMin, ddmm, mondayOf, currentWeekStart, weeklyDates } from "./dates.js";
 
 const SHEETJS_URL = "https://cdn.sheetjs.com/xlsx-0.20.3/package/xlsx.mjs";
 const MAX_FILE_BYTES = 2 * 1024 * 1024;
@@ -170,13 +170,51 @@ const dlg = $("editDlg"), form = $("editForm");
 const dayBoxes = [...$("repeatDays").querySelectorAll("input")];
 const weekdayOf = key => (fromKey(key).getDay() + 6) % 7;
 
+// 24-hour time pickers (hour + minute selects). <input type="time"> shows AM/PM in the
+// browser's own language, so we build our own; the hidden input keeps the "HH:MM" value.
+const option = (value, text = value) => Object.assign(document.createElement("option"), { value, textContent: text });
+const timePickers = [...form.querySelectorAll(".time-pick")].map(wrap => {
+  const hidden = wrap.querySelector("input");
+  const hh = document.createElement("select"), mm = document.createElement("select");
+  hh.setAttribute("aria-label", "Hour");
+  mm.setAttribute("aria-label", "Minutes");
+  for (let h = 0; h < 24; h++) hh.append(option(pad(h)));
+  for (let m = 0; m < 60; m += 5) mm.append(option(pad(m)));
+  const sync = () => { hidden.value = `${hh.value}:${mm.value}`; hidden.dispatchEvent(new Event("input")); };
+  hh.onchange = mm.onchange = sync;
+  wrap.append(hh, document.createTextNode(":"), mm);
+  return {
+    set(v) {
+      const [h, m] = (v || "09:00").split(":");
+      if (![...mm.options].some(o => o.value === m)) mm.append(option(m));  // e.g. an imported 10:23
+      hh.value = h; mm.value = m; hidden.value = `${h}:${m}`;
+    },
+  };
+});
+
+// Keep an unknown type (e.g. "Lezione" from earlier imports) selectable instead of losing it.
+const TYPES = ["", "Lecture", "Exercise", "Lab", "Exam"];
+function setType(v) {
+  const sel = form.elements.type;
+  sel.querySelector("option[data-extra]")?.remove();
+  if (v && !TYPES.includes(v)) {
+    const o = option(v);
+    o.dataset.extra = "1";
+    sel.append(o);
+  }
+  sel.value = v || "";
+}
+
 function openEditor(session, defaults) {
   state.editingId = session ? session.id : null;
-  const s = session || { type: "Lezione", ...defaults };
+  const s = session || { type: "", ...defaults };
   $("editTitle").textContent = session ? "Edit lesson" : "Add lesson";
   $("delBtn").hidden = !session;
   $("editErr").textContent = "";
-  for (const k of FIELDS) form.elements[k].value = s[k] || "";
+  for (const k of ["course", "date", "lecturer", "room", "note"]) form.elements[k].value = s[k] || "";
+  timePickers[0].set(s.start);
+  timePickers[1].set(s.end);
+  setType(s.type);
   // Repeat options only when adding; series scope only when editing a series lesson.
   $("repeatBox").hidden = !!session;
   $("repeatOn").checked = false;

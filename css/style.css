@@ -23,7 +23,7 @@ button.danger { color: var(--danger); border-color: #f3c2c2; }
 button.link { border: none; background: none; color: var(--accent); padding: 4px 0; }
 button.link:disabled { color: var(--muted); }
 button.wide { width: 100%; padding: 9px; }
-input, textarea { font: inherit; color: var(--text); padding: 7px 9px; border: 1px solid var(--line-strong); border-radius: 6px; width: 100%; background: #fff; }
+input, textarea, select { font: inherit; color: var(--text); padding: 7px 9px; border: 1px solid var(--line-strong); border-radius: 6px; width: 100%; background: #fff; }
 input[readonly] { background: #f3f4f6; color: var(--muted); }
 textarea { min-height: 80px; resize: vertical; }
 label { display: grid; gap: 4px; font-size: 12px; color: var(--muted); }
@@ -33,6 +33,9 @@ label.check input { width: auto; }
 .pw-wrap input { padding-right: 40px; }
 .pw-toggle { position: absolute; top: 50%; right: 4px; transform: translateY(-50%); border: none; background: none; padding: 4px 6px; color: var(--muted); line-height: 0; }
 .pw-toggle:hover { background: none; color: var(--text); }
+select { padding: 6px 8px; cursor: pointer; }
+.time-pick { display: flex; align-items: center; gap: 4px; color: var(--text); }
+.time-pick select { width: auto; flex: 1; min-width: 0; }
 .err { color: var(--danger); font-size: 12px; min-height: 1em; }
 
 /* ---------- login ---------- */
@@ -58,11 +61,14 @@ label.check input { width: auto; }
 #profileBtn::before { content: "👤 "; }
 
 /* ---------- grid ---------- */
-main { padding: 16px; }
-.grid-wrap { background: var(--panel); border: 1px solid var(--line-strong); border-radius: 8px; overflow-x: auto; }
+/* App view fills the window; the grid scrolls inside it so the day header row can stay pinned. */
+#view-app { display: flex; flex-direction: column; height: 100vh; height: 100dvh; }
+main { padding: 16px; flex: 1; min-height: 0; display: flex; flex-direction: column; }
+.grid-wrap { background: var(--panel); border: 1px solid var(--line-strong); border-radius: 8px; overflow: auto; min-height: 0; flex: 0 1 auto; }
+.site-footer { flex: none; text-align: center; font-size: 11px; color: var(--muted); padding: 0 16px 10px; }
 .grid { display: grid; grid-template-columns: 56px repeat(5, minmax(130px, 1fr)); min-width: 720px; position: relative; }
-.corner { border-bottom: 1px solid var(--line-strong); background: #fafbfc; grid-column: 1; grid-row: 1; }
-.day-head { background: #fafbfc; border-bottom: 1px solid var(--line-strong); border-left: 1px solid var(--line); padding: 8px 4px; text-align: center; font-weight: 600; }
+.corner { border-bottom: 1px solid var(--line-strong); background: #fafbfc; grid-column: 1; grid-row: 1; position: sticky; top: 0; z-index: 6; }
+.day-head { position: sticky; top: 0; z-index: 6; background: #fafbfc; border-bottom: 1px solid var(--line-strong); border-left: 1px solid var(--line); padding: 8px 4px; text-align: center; font-weight: 600; }
 .day-head.today { background: var(--today); color: var(--accent); }
 .time { font-size: 12px; color: var(--muted); text-align: right; padding: 0 8px; transform: translateY(-8px); }
 .time.half { opacity: .55; }
@@ -119,6 +125,8 @@ dialog form.sub-form { padding-top: 0; }
 }
 @media print {
   .topbar .actions-bar, .weeknav button, .weeknav input, #toast, .now-line { display: none; }
-  main { padding: 0; }
+  #view-app { height: auto; display: block; }
+  main { padding: 0; display: block; }
+  .grid-wrap { overflow: visible; }
   .slot.today, .day-head.today { background: none; }
 }

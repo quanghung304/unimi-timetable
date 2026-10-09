@@ -67,7 +67,7 @@ export function parseRows(rows) {
         date, start: s, end: e, course,
         lecturer: c.lecturer >= 0 ? cell(r[c.lecturer]).slice(0, 300) : "",
         room: c.room >= 0 ? cell(r[c.room]).slice(0, 200) : "",
-        type: "Lezione",
+        type: "",   // the export has no lesson-type column
         note: JUNK_NOTE.test(note) ? "" : note.slice(0, 2000),
         source: "import", source_key: key, modified: false,
       });

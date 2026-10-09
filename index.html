@@ -39,7 +39,7 @@
       <p class="muted small" id="forgotHint">Forgot your password? Ask the admin
         (<a href="mailto:hung.cao@studenti.unimi.it">hung.cao@studenti.unimi.it</a>) to reset it.</p>
     </form>
-    <p class="muted tiny">Unofficial student project — not affiliated with Università degli Studi di Milano.</p>
+    <p class="muted tiny">Made by Hung Cao · Unofficial student project — not affiliated with Università degli Studi di Milano.</p>
   </div>
 </div>
 
@@ -63,6 +63,7 @@
     </div>
   </header>
   <main id="main"></main>
+  <footer class="site-footer">© 2026 Hung Cao · UniMi Timetable — unofficial student project, not affiliated with Università degli Studi di Milano.</footer>
 </div>
 
 <!-- ======================= Edit lesson ======================= -->
@@ -72,8 +73,8 @@
     <label>Course <input name="course" list="courseList" maxlength="200" required></label>
     <div class="row3">
       <label><span id="dateLabel">Date</span> <input type="date" name="date" required></label>
-      <label>Start <input type="time" name="start" step="300" required></label>
-      <label>End <input type="time" name="end" step="300" required></label>
+      <label>Start <span class="time-pick"><input type="hidden" name="start"></span></label>
+      <label>End <span class="time-pick"><input type="hidden" name="end"></span></label>
     </div>
     <fieldset class="box" id="repeatBox">
       <label class="check"><input type="checkbox" id="repeatOn"> Repeat weekly (e.g. for the whole semester)</label>
@@ -97,7 +98,15 @@
     <label>Lecturer <input name="lecturer" list="lecturerList" maxlength="300"></label>
     <div class="row2">
       <label>Room <input name="room" list="roomList" maxlength="200"></label>
-      <label>Type <input name="type" list="typeList" maxlength="50" placeholder="Lezione"></label>
+      <label>Type
+        <select name="type">
+          <option value="">—</option>
+          <option>Lecture</option>
+          <option>Exercise</option>
+          <option>Lab</option>
+          <option>Exam</option>
+        </select>
+      </label>
     </div>
     <label>Note <textarea name="note" maxlength="2000" placeholder="Anything to remember for this lesson…"></textarea></label>
     <div class="err" id="editErr"></div>
@@ -162,7 +171,6 @@
 <datalist id="courseList"></datalist>
 <datalist id="lecturerList"></datalist>
 <datalist id="roomList"></datalist>
-<datalist id="typeList"><option value="Lezione"><option value="Esame"><option value="Laboratorio"><option value="Esercitazione"></datalist>
 
 <div id="toast" role="status" aria-live="polite"></div>
 </body>
