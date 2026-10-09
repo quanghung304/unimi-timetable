@@ -1,0 +1,10 @@
+.git
+.gitignore
+.assetsignore
+.wrangler
+README.md
+serve.py
+supabase
+wrangler.json
+wrangler.jsonc
+wrangler.toml
