@@ -38,6 +38,16 @@ timetable-app/
 
 **Quên mật khẩu**: sinh viên liên hệ admin → admin vào *Profile → Admin* nhập email + mật khẩu tạm → báo cho sinh viên → sinh viên đăng nhập và đổi ở *Profile → Change password*.
 
+**Admin tự quên mật khẩu**: đăng nhập <https://supabase.com/dashboard> → project → **SQL Editor**, chạy (thay mật khẩu tạm):
+```sql
+update auth.users
+   set encrypted_password = extensions.crypt('MatKhauTam123', extensions.gen_salt('bf')),
+       updated_at = now()
+ where email = 'hung.cao@studenti.unimi.it';
+```
+Đăng nhập app bằng mật khẩu tạm rồi đổi lại ở *Profile → Change password*. Cách này dùng được cho mọi tài khoản.
+Vì tài khoản Supabase (hoặc GitHub dùng để đăng nhập Supabase) là "chìa khóa tổng", hãy bật **xác minh 2 bước** cho nó.
+
 > Lưu ý: vì không xác minh email, về lý thuyết một người có thể đăng ký bằng địa chỉ `@studenti.unimi.it` của người khác (nếu người đó chưa có tài khoản). Dữ liệu ở đây chỉ là thời khóa biểu nên rủi ro thấp; khi cần chặt hơn thì bật lại *Confirm email* + cấu hình SMTP.
 
 "Ghi nhớ đăng nhập": phiên lưu trong `localStorage`, refresh token tự gia hạn — mặc định Supabase không giới hạn thời gian phiên, nên người dùng giữ đăng nhập đến khi bấm *Sign out*. Nếu bỏ tick *Keep me signed in*, phiên chỉ sống đến khi đóng trình duyệt.

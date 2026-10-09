@@ -29,6 +29,10 @@ textarea { min-height: 80px; resize: vertical; }
 label { display: grid; gap: 4px; font-size: 12px; color: var(--muted); }
 label.check { display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--text); }
 label.check input { width: auto; }
+.pw-wrap { position: relative; display: block; }
+.pw-wrap input { padding-right: 40px; }
+.pw-toggle { position: absolute; top: 50%; right: 4px; transform: translateY(-50%); border: none; background: none; padding: 4px 6px; color: var(--muted); line-height: 0; }
+.pw-toggle:hover { background: none; color: var(--text); }
 .err { color: var(--danger); font-size: 12px; min-height: 1em; }
 
 /* ---------- login ---------- */
