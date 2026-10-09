@@ -55,7 +55,7 @@ Vì tài khoản Supabase (hoặc GitHub dùng để đăng nhập Supabase) là
 ## 2. Chạy thử trên máy
 
 ```bash
-python -m http.server 8000   # chạy ở thư mục gốc repo
+python serve.py   # chạy ở thư mục gốc repo, đã tắt cache → sửa code xong chỉ cần F5
 # mở http://localhost:8000
 ```
 (Phải chạy qua http, không mở trực tiếp file:// vì ES modules bị chặn.)
