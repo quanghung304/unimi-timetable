@@ -1,0 +1,10 @@
+// Cloudflare Worker config: a static site served from the repo root.
+// "name" must match the Worker name in the Cloudflare dashboard.
+// Files listed in .assetsignore (README, schema, dev server…) are not published.
+{
+  "name": "timetable",
+  "compatibility_date": "2026-09-01",
+  "assets": {
+    "directory": "."
+  }
+}
