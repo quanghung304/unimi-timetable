@@ -3,7 +3,7 @@ import { remember } from "./supabase.js";
 import * as api from "./api.js";
 import { parseWorkbook, planMerge } from "./importer.js";
 import { renderWeek, drawNowLine } from "./grid.js";
-import { toKey, fromKey, addDays, toMin, fmtMin, ddmm, mondayOf, currentWeekStart } from "./dates.js";
+import { toKey, fromKey, addDays, toMin, fmtMin, ddmm, mondayOf, currentWeekStart, weeklyDates } from "./dates.js";
 
 const SHEETJS_URL = "https://cdn.sheetjs.com/xlsx-0.20.3/package/xlsx.mjs";
 const MAX_FILE_BYTES = 2 * 1024 * 1024;
@@ -165,7 +165,10 @@ window.addEventListener("resize", () => drawNowLine($("main")));
 // ---------- edit dialog ----------
 const FIELDS = ["course", "date", "start", "end", "lecturer", "room", "type", "note"];
 const CORE = FIELDS.filter(f => f !== "note");
+const MAX_SERIES = 200;
 const dlg = $("editDlg"), form = $("editForm");
+const dayBoxes = [...$("repeatDays").querySelectorAll("input")];
+const weekdayOf = key => (fromKey(key).getDay() + 6) % 7;
 
 function openEditor(session, defaults) {
   state.editingId = session ? session.id : null;
@@ -174,9 +177,45 @@ function openEditor(session, defaults) {
   $("delBtn").hidden = !session;
   $("editErr").textContent = "";
   for (const k of FIELDS) form.elements[k].value = s[k] || "";
+  // Repeat options only when adding; series scope only when editing a series lesson.
+  $("repeatBox").hidden = !!session;
+  $("repeatOn").checked = false;
+  $("repeatUntil").value = "";
+  $("scopeBox").hidden = !session?.series_id;
+  form.elements.scope.value = "one";
+  syncRepeat();
   dlg.showModal();
   (session ? form.elements.note : form.elements.course).focus();
 }
+
+function repeatDates() {
+  const from = form.elements.date.value, until = $("repeatUntil").value;
+  const days = dayBoxes.filter(b => b.checked).map(b => +b.value);
+  return from && until && days.length ? weeklyDates(from, until, days) : [];
+}
+
+function syncRepeat() {
+  const on = $("repeatOn").checked;
+  $("repeatOpts").hidden = !on;
+  $("dateLabel").textContent = on ? "Starts on" : "Date";
+  if (!on) return;
+  const dates = repeatDates();
+  $("repeatPreview").textContent = !$("repeatUntil").value ? "Pick the last day of the series."
+    : !dates.length ? "No lessons in that range on the selected days."
+    : `${dates.length} lesson${dates.length > 1 ? "s" : ""}: ${ddmm(fromKey(dates[0]))} → ${ddmm(fromKey(dates.at(-1)))}/${dates.at(-1).slice(0, 4)}` +
+      (dates.length > MAX_SERIES ? ` (max ${MAX_SERIES})` : "");
+}
+
+$("repeatOn").onchange = () => {
+  // Default weekday = the day of the chosen date.
+  if ($("repeatOn").checked && !dayBoxes.some(b => b.checked) && form.elements.date.value) {
+    const wd = weekdayOf(form.elements.date.value);
+    if (dayBoxes[wd]) dayBoxes[wd].checked = true;
+  }
+  syncRepeat();
+};
+for (const el of [...dayBoxes, $("repeatUntil"), form.elements.date]) el.addEventListener("input", syncRepeat);
+dlg.addEventListener("close", () => dayBoxes.forEach(b => b.checked = false));
 
 $("main").addEventListener("click", e => {
   const ev = e.target.closest(".event");
@@ -196,35 +235,60 @@ $("cancelBtn").onclick = () => dlg.close();
 form.addEventListener("submit", e => {
   e.preventDefault();
   const f = Object.fromEntries(FIELDS.map(k => [k, form.elements[k].value.trim()]));
-  if (toMin(f.end) <= toMin(f.start)) { $("editErr").textContent = "End time must be after start time."; return; }
+  const err = $("editErr");
+  if (toMin(f.end) <= toMin(f.start)) { err.textContent = "End time must be after start time."; return; }
+  const repeat = !state.editingId && $("repeatOn").checked;
+  const dates = repeat ? repeatDates() : [];
+  if (repeat) {
+    if (!$("repeatUntil").value) { err.textContent = "Pick the last day of the series."; return; }
+    if (!dates.length) { err.textContent = "No lessons in that range on the selected days."; return; }
+    if (dates.length > MAX_SERIES) { err.textContent = `Too many lessons (${dates.length}); max ${MAX_SERIES}.`; return; }
+  }
   busy($("saveBtn"), async () => {
     try {
-      let saved;
+      let msg = "Saved";
       if (state.editingId) {
         const old = state.sessions.find(s => s.id === state.editingId);
-        // A note-only edit keeps the lesson in sync with future imports.
-        const modified = old.modified || CORE.some(k => (old[k] || "") !== f[k]);
-        saved = await api.updateSession(old.id, f, modified);
-        state.sessions[state.sessions.indexOf(old)] = saved;
+        if (old.series_id && form.elements.scope.value === "following") {
+          // Course/time/room… go to this and later lessons; date and note only to this one.
+          await api.updateSeries(old.series_id, old.date, f);
+          await api.updateSession(old.id, f, true);
+          state.sessions = await api.loadSessions();
+          msg = "Series updated";
+        } else {
+          // A note-only edit keeps the lesson in sync with future imports.
+          const modified = old.modified || CORE.some(k => (old[k] || "") !== f[k]);
+          state.sessions[state.sessions.indexOf(old)] = await api.updateSession(old.id, f, modified);
+        }
+      } else if (repeat) {
+        state.sessions.push(...await api.createSeries(dates.map(date => ({ ...f, date }))));
+        msg = `Added ${dates.length} lessons`;
       } else {
-        saved = await api.createSession(f);
-        state.sessions.push(saved);
+        state.sessions.push(await api.createSession(f));
       }
       dlg.close();
       render();
-      toast("Saved");
-    } catch (err) { $("editErr").textContent = "Could not save: " + errMsg(err); }
+      toast(msg);
+    } catch (ex) { err.textContent = "Could not save: " + errMsg(ex); }
   });
 });
 
 $("delBtn").onclick = () => {
-  if (!confirm("Delete this lesson?")) return;
+  const old = state.sessions.find(s => s.id === state.editingId);
+  const following = old.series_id && form.elements.scope.value === "following";
+  const n = following ? state.sessions.filter(s => s.series_id === old.series_id && s.date >= old.date).length : 1;
+  if (!confirm(following ? `Delete this and the following lessons of the series (${n})?` : "Delete this lesson?")) return;
   busy($("delBtn"), async () => {
     try {
-      await api.deleteSession(state.editingId);
-      state.sessions = state.sessions.filter(s => s.id !== state.editingId);
-      dlg.close(); render(); toast("Deleted");
-    } catch (err) { $("editErr").textContent = "Could not delete: " + errMsg(err); }
+      if (following) {
+        await api.deleteSeries(old.series_id, old.date);
+        state.sessions = state.sessions.filter(s => !(s.series_id === old.series_id && s.date >= old.date));
+      } else {
+        await api.deleteSession(old.id);
+        state.sessions = state.sessions.filter(s => s.id !== old.id);
+      }
+      dlg.close(); render(); toast(n > 1 ? `Deleted ${n} lessons` : "Deleted");
+    } catch (ex) { $("editErr").textContent = "Could not delete: " + errMsg(ex); }
   });
 };
 

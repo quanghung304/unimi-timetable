@@ -71,10 +71,29 @@
     <h3 id="editTitle">Edit lesson</h3>
     <label>Course <input name="course" list="courseList" maxlength="200" required></label>
     <div class="row3">
-      <label>Date <input type="date" name="date" required></label>
+      <label><span id="dateLabel">Date</span> <input type="date" name="date" required></label>
       <label>Start <input type="time" name="start" step="300" required></label>
       <label>End <input type="time" name="end" step="300" required></label>
     </div>
+    <fieldset class="box" id="repeatBox">
+      <label class="check"><input type="checkbox" id="repeatOn"> Repeat weekly (e.g. for the whole semester)</label>
+      <div id="repeatOpts" hidden>
+        <div class="weekdays" id="repeatDays" role="group" aria-label="Repeat on">
+          <label class="day-chip"><input type="checkbox" value="0"> Mon</label>
+          <label class="day-chip"><input type="checkbox" value="1"> Tue</label>
+          <label class="day-chip"><input type="checkbox" value="2"> Wed</label>
+          <label class="day-chip"><input type="checkbox" value="3"> Thu</label>
+          <label class="day-chip"><input type="checkbox" value="4"> Fri</label>
+        </div>
+        <label>Until (last day) <input type="date" id="repeatUntil"></label>
+        <p class="muted small" id="repeatPreview"></p>
+      </div>
+    </fieldset>
+    <fieldset class="box" id="scopeBox" hidden>
+      <span class="small">This lesson is part of a weekly series. Save / delete:</span>
+      <label class="check"><input type="radio" name="scope" value="one" checked> This lesson only</label>
+      <label class="check"><input type="radio" name="scope" value="following"> This and all following lessons</label>
+    </fieldset>
     <label>Lecturer <input name="lecturer" list="lecturerList" maxlength="300"></label>
     <div class="row2">
       <label>Room <input name="room" list="roomList" maxlength="200"></label>

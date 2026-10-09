@@ -12,6 +12,14 @@ export function mondayOf(d) {
   return addDays(r, -((r.getDay() + 6) % 7));
 }
 
+// All dates from..until (inclusive) falling on the given weekdays (0 = Mon … 6 = Sun).
+export function weeklyDates(from, until, weekdays) {
+  const out = [];
+  for (let d = fromKey(from), end = fromKey(until); d <= end; d = addDays(d, 1))
+    if (weekdays.includes((d.getDay() + 6) % 7)) out.push(toKey(d));
+  return out;
+}
+
 // Week shown on open: the current week; on Saturday/Sunday the coming week.
 export function currentWeekStart(now = new Date()) {
   const dow = (now.getDay() + 6) % 7;

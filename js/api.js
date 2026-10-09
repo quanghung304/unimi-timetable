@@ -1,8 +1,9 @@
 // All server access goes through this module (auth + data).
 import { sb } from "./supabase.js";
 
-const COLS = "id,date,start_time,end_time,course,lecturer,room,type,note,source,source_key,modified";
+const COLS = "id,date,start_time,end_time,course,lecturer,room,type,note,source,source_key,modified,series_id";
 const CORE = ["date", "start", "end", "course", "lecturer", "room", "type"];
+export const SERIES_FIELDS = CORE.filter(f => f !== "date");
 
 const fromRow = r => ({ ...r, start: r.start_time.slice(0, 5), end: r.end_time.slice(0, 5) });
 function toRow(s, fields) {
@@ -57,6 +58,21 @@ export async function updateSession(id, s, modified) {
 }
 
 export const deleteSession = id => sb.from("sessions").delete().eq("id", id).then(check);
+
+// ---------- weekly series ----------
+export async function createSeries(list) {
+  const series_id = crypto.randomUUID();
+  const rows = list.map(s => ({ ...toRow(s, [...CORE, "note"]), source: "manual", modified: true, series_id }));
+  return check(await sb.from("sessions").insert(rows).select(COLS)).map(fromRow);
+}
+
+// Applies time/course/room… (not date, not note) to lessons of a series on or after fromDate.
+export const updateSeries = (seriesId, fromDate, s) =>
+  sb.from("sessions").update({ ...toRow(s, SERIES_FIELDS), modified: true })
+    .eq("series_id", seriesId).gte("date", fromDate).then(check);
+
+export const deleteSeries = (seriesId, fromDate) =>
+  sb.from("sessions").delete().eq("series_id", seriesId).gte("date", fromDate).then(check);
 
 // Applies a plan from importer.planMerge. Updates leave `note` untouched.
 export async function applyImport({ inserts, updates, deletes }) {

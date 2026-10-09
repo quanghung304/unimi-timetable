@@ -74,6 +74,14 @@ python -m http.server 8000   # chạy ở thư mục gốc repo
 - Theo dõi dung lượng: Dashboard → Database → usage (giới hạn free 500 MB). Mỗi user bị giới hạn 3.000 buổi (trigger trong schema).
 - Backup: free tier không có backup tự động — định kỳ chạy `pg_dump` hoặc Dashboard → Database → Backups (Pro).
 
+## Lịch lặp lại (cả kỳ)
+
+*+ Add lesson* → tick **Repeat weekly** → chọn thứ (có thể nhiều thứ), ngày bắt đầu và **Until** (ngày cuối). App tạo từng buổi riêng (tối đa 200) và gắn chung một `series_id`.
+Khi sửa/xóa một buổi trong chuỗi: chọn **This lesson only** hoặc **This and all following lessons** — môn, giờ, phòng, giảng viên, loại áp dụng cho các buổi từ buổi đó trở đi; ngày và ghi chú chỉ áp dụng cho buổi đang mở.
+Ngày nghỉ lễ (vd. Natale) không tự bỏ qua — xóa riêng từng buổi đó với *This lesson only*.
+
+> Cập nhật từ bản trước: chạy lại `supabase/schema.sql` trong SQL Editor (thêm cột `series_id`).
+
 ## Quy tắc import
 
 - Đọc sheet đầu tiên, tìm dòng tiêu đề `Weekday | Day | Hour | Course | Lecturer | … | Room | Notes`.

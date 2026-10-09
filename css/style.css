@@ -90,6 +90,12 @@ dialog::backdrop { background: rgba(15, 23, 42, .4); }
 dialog form { padding: 18px 20px; display: grid; gap: 10px; }
 .row2 { display: grid; grid-template-columns: 2fr 1fr; gap: 8px; }
 .row3 { display: grid; grid-template-columns: 1.4fr 1fr 1fr; gap: 8px; }
+fieldset.box { border: 1px solid var(--line); border-radius: 8px; padding: 10px 12px; margin: 0; display: grid; gap: 8px; min-width: 0; }
+#repeatOpts { display: grid; gap: 8px; }
+.weekdays { display: flex; flex-wrap: wrap; gap: 6px; }
+.day-chip { display: inline-flex; align-items: center; gap: 4px; padding: 4px 10px; border: 1px solid var(--line-strong); border-radius: 999px; font-size: 13px; color: var(--text); cursor: pointer; }
+.day-chip input { width: auto; margin: 0; }
+.day-chip:has(input:checked) { background: #e8efff; border-color: var(--accent); color: var(--accent); }
 .dlg-actions { display: flex; gap: 8px; justify-content: flex-end; margin-top: 4px; }
 .push-left { margin-right: auto; }
 dialog form.sub-form { padding-top: 0; }

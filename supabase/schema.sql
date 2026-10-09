@@ -40,6 +40,11 @@ create table if not exists public.sessions (
 );
 create index if not exists sessions_user_date_idx on public.sessions (user_id, date);
 
+-- Weekly recurring lessons added by hand share a series_id, so the whole series
+-- (or "this and following") can be edited or deleted at once.
+alter table public.sessions add column if not exists series_id uuid;
+create index if not exists sessions_series_idx on public.sessions (series_id) where series_id is not null;
+
 -- ---------------------------------------------------------------------------
 -- Row Level Security: every user sees and edits only their own rows.
 -- ---------------------------------------------------------------------------
