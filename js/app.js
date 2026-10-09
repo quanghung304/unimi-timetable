@@ -2,7 +2,7 @@ import { ALLOWED_EMAIL_DOMAIN } from "./config.js";
 import { remember } from "./supabase.js";
 import * as api from "./api.js";
 import { parseWorkbook, planMerge } from "./importer.js";
-import { renderWeek, drawNowLine } from "./grid.js";
+import { renderWeek, drawNowLine, courseColors } from "./grid.js";
 import { pad, toKey, fromKey, addDays, toMin, fmtMin, ddmm, mondayOf, currentWeekStart, weeklyDates } from "./dates.js";
 
 const SHEETJS_URL = "https://cdn.sheetjs.com/xlsx-0.20.3/package/xlsx.mjs";
@@ -135,7 +135,7 @@ function render() {
       You can also add lessons by hand with <b>+ Add lesson</b>.</p></div>`;
   } else {
     const keys = new Set([0, 1, 2, 3, 4].map(i => toKey(addDays(ws, i))));
-    renderWeek(main, ws, state.sessions.filter(s => keys.has(s.date)));
+    renderWeek(main, ws, state.sessions.filter(s => keys.has(s.date)), courseColors(state.sessions));
   }
   fillDatalists();
 }

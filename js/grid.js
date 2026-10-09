@@ -9,6 +9,27 @@ const PALETTE = [
   { bg: "#cffafe", border: "#0891b2" }, { bg: "#f1f5f9", border: "#475569" },
 ];
 
+// Stable colour per course, computed over ALL of the user's courses (not just the visible
+// week): each course hashes to a palette slot; on a clash it takes the next free slot.
+// Processing in name order keeps the result the same every time for the same courses.
+function hash(str) {
+  let h = 0;
+  for (const ch of str) h = (h * 31 + ch.codePointAt(0)) >>> 0;
+  return h;
+}
+export function courseColors(allSessions) {
+  const courses = [...new Set(allSessions.map(s => s.course))].sort();
+  const used = new Set(), map = new Map();
+  for (const c of courses) {
+    let slot = hash(c.toLowerCase()) % PALETTE.length;
+    for (let i = 0; used.has(slot) && i < PALETTE.length; i++) slot = (slot + 1) % PALETTE.length;
+    used.add(slot);
+    if (used.size >= PALETTE.length) used.clear();   // more courses than colours: start reusing
+    map.set(c, PALETTE[slot]);
+  }
+  return map;
+}
+
 export const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 
 function timeRange(sessions) {
@@ -42,9 +63,8 @@ function layoutDay(list) {
   return out;
 }
 
-export function renderWeek(container, weekStart, sessions) {
-  const courses = [...new Set(sessions.map(s => s.course))].sort();
-  const color = c => PALETTE[courses.indexOf(c) % PALETTE.length];
+export function renderWeek(container, weekStart, sessions, colors) {
+  const color = c => colors.get(c) || PALETTE[PALETTE.length - 1];
   const days = [0, 1, 2, 3, 4].map(i => addDays(weekStart, i));
   const dayKeys = days.map(toKey);
   const todayKey = toKey(new Date());
