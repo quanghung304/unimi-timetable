@@ -18,31 +18,26 @@
     <h1>UniMi Timetable</h1>
     <p class="muted">Your weekly lesson grid, with your own edits and notes.</p>
 
-    <form id="emailForm" novalidate>
-      <div id="stepEmail">
-        <label>University email
-          <input type="email" id="loginEmail" placeholder="name.surname@studenti.unimi.it" autocomplete="email" required>
-        </label>
-        <label class="check"><input type="checkbox" id="rememberMe" checked> Keep me signed in on this device</label>
-        <div class="err" id="loginErr"></div>
-        <button class="primary wide" id="sendBtn">Send sign-in code</button>
-        <p class="muted small">No password needed. We'll email you a 6-digit code and a sign-in link.<br>New here? Your account is created on first sign-in.</p>
-      </div>
-    </form>
+    <div class="tabs" role="tablist">
+      <button type="button" role="tab" id="tabSignIn" class="active" aria-selected="true">Sign in</button>
+      <button type="button" role="tab" id="tabSignUp" aria-selected="false">Create account</button>
+    </div>
 
-    <form id="codeForm" novalidate>
-      <div id="stepCode" hidden>
-        <p>We sent a code to <b id="sentTo"></b>.<br><span class="muted small">Enter it below, or click the link in the email (open it in this browser).</span></p>
-        <label>6-digit code
-          <input id="loginCode" inputmode="numeric" autocomplete="one-time-code" maxlength="10" pattern="[0-9]*" required>
-        </label>
-        <div class="err" id="codeErr"></div>
-        <button class="primary wide" id="verifyBtn">Sign in</button>
-        <div class="row-between">
-          <button type="button" class="link" id="changeEmail">Use another email</button>
-          <button type="button" class="link" id="resendBtn">Resend code</button>
-        </div>
-      </div>
+    <form id="authForm" novalidate>
+      <label>University email
+        <input type="email" id="authEmail" placeholder="name.surname@studenti.unimi.it" autocomplete="email" required>
+      </label>
+      <label>Password
+        <input type="password" id="authPassword" minlength="6" autocomplete="current-password" required>
+      </label>
+      <label id="confirmWrap" hidden>Repeat password
+        <input type="password" id="authPassword2" minlength="6" autocomplete="new-password">
+      </label>
+      <label class="check"><input type="checkbox" id="rememberMe" checked> Keep me signed in on this device</label>
+      <div class="err" id="authErr"></div>
+      <button class="primary wide" id="authBtn">Sign in</button>
+      <p class="muted small" id="forgotHint">Forgot your password? Ask the admin
+        (<a href="mailto:hung.cao@studenti.unimi.it">hung.cao@studenti.unimi.it</a>) to reset it.</p>
     </form>
     <p class="muted tiny">Unofficial student project — not affiliated with Università degli Studi di Milano.</p>
   </div>
@@ -112,6 +107,31 @@
       <button type="button" id="profileCancel">Cancel</button>
       <button class="primary" id="profileSave">Save</button>
     </div>
+  </form>
+  <form id="passwordForm" class="sub-form">
+    <details>
+      <summary>Change password</summary>
+      <div class="row2 eq">
+        <label>New password <input type="password" name="pw1" minlength="6" autocomplete="new-password" required></label>
+        <label>Repeat <input type="password" name="pw2" minlength="6" autocomplete="new-password" required></label>
+      </div>
+      <div class="err" id="passwordErr"></div>
+      <button class="primary" id="passwordSave">Update password</button>
+    </details>
+  </form>
+  <form id="adminForm" class="sub-form" hidden>
+    <details>
+      <summary>Admin · reset a user's password</summary>
+      <p class="muted small">Sets a temporary password. Tell the student, and ask them to change it under Profile.</p>
+      <div class="row2 eq">
+        <label>User email <input type="email" name="email" placeholder="name.surname@studenti.unimi.it" required></label>
+        <label>Temporary password <input type="text" name="pw" minlength="6" autocomplete="off" required></label>
+      </div>
+      <div class="err" id="adminErr"></div>
+      <button class="primary" id="adminSave">Reset password</button>
+    </details>
+  </form>
+  <form class="sub-form">
     <details class="danger-zone">
       <summary>Delete account</summary>
       <p class="muted small">Permanently deletes your account, profile and timetable.</p>

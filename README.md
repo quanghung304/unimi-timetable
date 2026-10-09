@@ -1,6 +1,6 @@
 # UniMi Timetable
 
-Web xem/sửa thời khóa biểu theo tuần cho sinh viên Unimi. Web tĩnh (HTML + ES modules, không cần build) + Supabase (Auth + Postgres).
+Web xem/sửa thời khóa biểu theo tuần cho sinh viên Unimi. Đăng nhập bằng email + mật khẩu. Web tĩnh (HTML + ES modules, không cần build) + Supabase (Auth + Postgres).
 
 ```
 timetable-app/
@@ -23,20 +23,22 @@ timetable-app/
 1. Tạo project tại <https://supabase.com> — **Region: Central EU (Frankfurt)**.
 2. **SQL Editor** → dán toàn bộ `supabase/schema.sql` → Run.
 3. **Project Settings → API**: copy `Project URL` và `anon public` key vào `js/config.js`.
-4. **Authentication → Sign In / Providers → Email**: bật Email, bật *Allow new users to sign up*. Email OTP length: 6.
-5. **Authentication → URL Configuration**:
-   - Site URL: `https://<tên-dự-án>.pages.dev` (hoặc domain riêng)
-   - Redirect URLs: thêm URL trên và `http://localhost:8000/**` để chạy thử.
-6. **Authentication → Emails → Templates**: sửa cả **Magic Link** và **Confirm signup** để email có cả mã và link:
-   ```html
-   <h2>Your UniMi Timetable sign-in code</h2>
-   <p style="font-size:24px;letter-spacing:4px"><b>{{ .Token }}</b></p>
-   <p>Or <a href="{{ .ConfirmationURL }}">click here to sign in</a> (open it in the same browser).</p>
+4. **Authentication → Sign In / Providers → Email** (đăng nhập bằng email + mật khẩu, **không gửi email nào**):
+   - bật *Enable Email provider* và *Allow new users to sign up*
+   - **tắt *Confirm email*** — để đăng ký xong là vào app ngay
+   - **tắt *Secure password change*** — để người dùng đổi mật khẩu mà không cần email xác nhận
+   - *Minimum password length*: 6
+5. **Tạo tài khoản admin**: mở app → *Create account* bằng `hung.cao@studenti.unimi.it`, rồi chạy trong SQL Editor:
+   ```sql
+   insert into public.admins (user_id)
+   select id from auth.users where email = 'hung.cao@studenti.unimi.it';
    ```
-7. **SMTP riêng (bắt buộc khi chạy thật)** — SMTP mặc định của Supabase chỉ gửi cho thành viên project và giới hạn rất thấp.
-   - Tạo tài khoản **Brevo** (300 email/ngày miễn phí) hoặc **Resend** (3.000/tháng), xác minh domain gửi.
-   - **Authentication → Emails → SMTP Settings**: điền host/port/user/password, sender `no-reply@<domain>`.
-   - **Authentication → Rate Limits**: tăng "emails sent per hour" cho phù hợp (vd. 100).
+   Đăng nhập lại → *Profile* sẽ có mục **Admin · reset a user's password**.
+   Làm bước này **trước khi** chia sẻ link, để không ai đăng ký trước bằng email của bạn.
+
+**Quên mật khẩu**: sinh viên liên hệ admin → admin vào *Profile → Admin* nhập email + mật khẩu tạm → báo cho sinh viên → sinh viên đăng nhập và đổi ở *Profile → Change password*.
+
+> Lưu ý: vì không xác minh email, về lý thuyết một người có thể đăng ký bằng địa chỉ `@studenti.unimi.it` của người khác (nếu người đó chưa có tài khoản). Dữ liệu ở đây chỉ là thời khóa biểu nên rủi ro thấp; khi cần chặt hơn thì bật lại *Confirm email* + cấu hình SMTP.
 
 "Ghi nhớ đăng nhập": phiên lưu trong `localStorage`, refresh token tự gia hạn — mặc định Supabase không giới hạn thời gian phiên, nên người dùng giữ đăng nhập đến khi bấm *Sign out*. Nếu bỏ tick *Keep me signed in*, phiên chỉ sống đến khi đóng trình duyệt.
 

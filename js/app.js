@@ -7,7 +7,7 @@ import { toKey, fromKey, addDays, toMin, fmtMin, ddmm, mondayOf, currentWeekStar
 
 const SHEETJS_URL = "https://cdn.sheetjs.com/xlsx-0.20.3/package/xlsx.mjs";
 const MAX_FILE_BYTES = 2 * 1024 * 1024;
-const RESEND_SECONDS = 60;
+const MIN_PASSWORD = 6;
 
 const $ = id => document.getElementById(id);
 const state = { user: null, profile: null, sessions: [], weekStart: currentWeekStart(), editingId: null };
@@ -31,58 +31,52 @@ async function busy(btn, fn) {
   try { return await fn(); } finally { btn.disabled = false; }
 }
 
-// ---------- login (email OTP / magic link) ----------
-let loginEmail = "", resendTimer;
+// ---------- login / sign-up (email + password) ----------
+let mode = "signin";
 
-function startResendCountdown() {
-  let left = RESEND_SECONDS;
-  const btn = $("resendBtn");
-  btn.disabled = true;
-  clearInterval(resendTimer);
-  const tick = () => {
-    btn.textContent = left > 0 ? `Resend code (${left}s)` : "Resend code";
-    if (left-- <= 0) { clearInterval(resendTimer); btn.disabled = false; }
-  };
-  tick();
-  resendTimer = setInterval(tick, 1000);
+function setMode(m) {
+  mode = m;
+  const up = m === "signup";
+  $("tabSignIn").classList.toggle("active", !up);
+  $("tabSignUp").classList.toggle("active", up);
+  $("tabSignIn").setAttribute("aria-selected", String(!up));
+  $("tabSignUp").setAttribute("aria-selected", String(up));
+  $("confirmWrap").hidden = !up;
+  $("forgotHint").hidden = up;
+  $("authBtn").textContent = up ? "Create account" : "Sign in";
+  $("authPassword").autocomplete = up ? "new-password" : "current-password";
+  $("authErr").textContent = "";
+}
+$("tabSignIn").onclick = () => setMode("signin");
+$("tabSignUp").onclick = () => setMode("signup");
+
+function authError(e) {
+  const m = errMsg(e);
+  if (/invalid login credentials/i.test(m)) return "Wrong email or password.";
+  if (/already registered|already exists/i.test(m)) return "This email already has an account. Sign in instead.";
+  if (/studenti\.unimi\.it|database error saving new user/i.test(m)) return `Only @${ALLOWED_EMAIL_DOMAIN} addresses can sign up.`;
+  if (/rate limit|too many/i.test(m)) return "Too many attempts. Please wait a minute and try again.";
+  return m;
 }
 
-async function requestCode() {
-  const email = $("loginEmail").value.trim().toLowerCase();
-  $("loginErr").textContent = "";
-  if (!email.endsWith("@" + ALLOWED_EMAIL_DOMAIN)) {
-    $("loginErr").textContent = `Please use your @${ALLOWED_EMAIL_DOMAIN} address.`;
-    return;
-  }
-  remember.set($("rememberMe").checked);
-  try {
-    await api.sendCode(email);
-    loginEmail = email;
-    $("sentTo").textContent = email;
-    $("stepEmail").hidden = true;
-    $("stepCode").hidden = false;
-    $("loginCode").value = "";
-    $("loginCode").focus();
-    startResendCountdown();
-  } catch (e) {
-    $("loginErr").textContent = /rate|security purposes/i.test(errMsg(e))
-      ? "Too many requests. Please wait a minute and try again."
-      : "Could not send the code: " + errMsg(e);
-  }
-}
-
-$("emailForm").addEventListener("submit", e => { e.preventDefault(); busy($("sendBtn"), requestCode); });
-$("resendBtn").onclick = () => busy($("resendBtn"), async () => {
-  try { await api.sendCode(loginEmail); toast("A new code has been sent"); startResendCountdown(); }
-  catch (e) { $("codeErr").textContent = errMsg(e); }
-});
-$("changeEmail").onclick = () => { $("stepCode").hidden = true; $("stepEmail").hidden = false; $("codeErr").textContent = ""; };
-$("codeForm").addEventListener("submit", e => {
+$("authForm").addEventListener("submit", e => {
   e.preventDefault();
-  busy($("verifyBtn"), async () => {
-    $("codeErr").textContent = "";
-    try { await api.verifyCode(loginEmail, $("loginCode").value.trim()); }
-    catch (err) { $("codeErr").textContent = "Invalid or expired code. Check the latest email, or resend."; }
+  const email = $("authEmail").value.trim().toLowerCase();
+  const pw = $("authPassword").value;
+  const err = $("authErr");
+  err.textContent = "";
+  if (!email.endsWith("@" + ALLOWED_EMAIL_DOMAIN)) { err.textContent = `Please use your @${ALLOWED_EMAIL_DOMAIN} address.`; return; }
+  if (pw.length < MIN_PASSWORD) { err.textContent = `Password must be at least ${MIN_PASSWORD} characters.`; return; }
+  if (mode === "signup" && pw !== $("authPassword2").value) { err.textContent = "Passwords do not match."; return; }
+  remember.set($("rememberMe").checked);
+  busy($("authBtn"), async () => {
+    try {
+      if (mode === "signin") await api.signIn(email, pw);
+      else {
+        const { session } = await api.signUp(email, pw);
+        if (!session) err.textContent = 'Account created, but "Confirm email" is still on in Supabase. Turn it off (see README).';
+      }
+    } catch (ex) { err.textContent = authError(ex); }
   });
 });
 
@@ -99,6 +93,8 @@ async function enterApp(user) {
   }
   state.weekStart = currentWeekStart();
   $("userName").textContent = state.profile.full_name || user.email;
+  $("adminForm").hidden = true;
+  api.isAdmin().then(yes => { $("adminForm").hidden = !yes; }).catch(() => {});
   show("app");
   render();
 }
@@ -252,10 +248,45 @@ const PFIELDS = ["full_name", "course_of_study", "academic_year", "year_of_study
 $("profileBtn").onclick = () => {
   pForm.elements.email.value = state.profile?.email || state.user.email;
   for (const k of PFIELDS) pForm.elements[k].value = state.profile?.[k] || "";
-  $("profileErr").textContent = "";
+  $("profileErr").textContent = $("passwordErr").textContent = $("adminErr").textContent = "";
+  $("passwordForm").reset();
+  $("adminForm").reset();
   pDlg.showModal();
 };
 $("profileCancel").onclick = () => pDlg.close();
+
+$("passwordForm").addEventListener("submit", e => {
+  e.preventDefault();
+  const f = e.target.elements, err = $("passwordErr");
+  if (f.pw1.value.length < MIN_PASSWORD) { err.textContent = `At least ${MIN_PASSWORD} characters.`; return; }
+  if (f.pw1.value !== f.pw2.value) { err.textContent = "Passwords do not match."; return; }
+  busy($("passwordSave"), async () => {
+    try {
+      await api.changePassword(f.pw1.value);
+      e.target.reset();
+      err.textContent = "";
+      toast("Password updated");
+    } catch (ex) {
+      err.textContent = /different from the old/i.test(errMsg(ex)) ? "New password must differ from the current one." : errMsg(ex);
+    }
+  });
+});
+
+$("adminForm").addEventListener("submit", e => {
+  e.preventDefault();
+  const f = e.target.elements, err = $("adminErr");
+  const email = f.email.value.trim().toLowerCase();
+  if (f.pw.value.length < MIN_PASSWORD) { err.textContent = `At least ${MIN_PASSWORD} characters.`; return; }
+  if (!confirm(`Reset the password of ${email}?`)) return;
+  busy($("adminSave"), async () => {
+    try {
+      await api.adminResetPassword(email, f.pw.value);
+      err.textContent = "";
+      toast(`Password of ${email} reset`);
+      f.pw.value = "";
+    } catch (ex) { err.textContent = errMsg(ex); }
+  });
+});
 pForm.addEventListener("submit", e => {
   e.preventDefault();
   const p = Object.fromEntries(PFIELDS.map(k => [k, pForm.elements[k].value.trim()]));
@@ -300,7 +331,7 @@ api.onAuthChange(user => {
   if (user && user.id !== state.user?.id) enterApp(user);
   else if (!user) {
     state.user = null; state.profile = null; state.sessions = [];
-    $("stepCode").hidden = true; $("stepEmail").hidden = false;
+    $("authPassword").value = $("authPassword2").value = "";
     show("login");
   }
 });

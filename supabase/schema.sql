@@ -129,3 +129,47 @@ end $$;
 
 revoke all on function public.delete_my_account() from public, anon;
 grant execute on function public.delete_my_account() to authenticated;
+
+-- ---------------------------------------------------------------------------
+-- Admins: no emails are sent, so a user who forgets their password asks an admin,
+-- who sets a temporary one. Admins are listed by user id (not email), so someone
+-- who later signs up with the same address cannot inherit the role.
+-- Add yourself after creating your account:
+--   insert into public.admins (user_id)
+--   select id from auth.users where email = 'hung.cao@studenti.unimi.it';
+-- ---------------------------------------------------------------------------
+create table if not exists public.admins (
+  user_id uuid primary key references auth.users (id) on delete cascade
+);
+alter table public.admins enable row level security;  -- no policies: invisible to the API
+
+create or replace function public.is_admin()
+returns boolean language sql stable security definer set search_path = '' as $$
+  select exists (select 1 from public.admins where user_id = auth.uid());
+$$;
+
+create or replace function public.admin_reset_password(target_email text, new_password text)
+returns void language plpgsql security definer set search_path = '' as $$
+declare
+  target uuid;
+begin
+  if not public.is_admin() then
+    raise exception 'Not allowed';
+  end if;
+  if char_length(coalesce(new_password, '')) < 6 then
+    raise exception 'Password must be at least 6 characters';
+  end if;
+  select id into target from auth.users where lower(email) = lower(trim(target_email));
+  if target is null then
+    raise exception 'No account with that email';
+  end if;
+  update auth.users
+     set encrypted_password = extensions.crypt(new_password, extensions.gen_salt('bf')),
+         updated_at = now()
+   where id = target;
+end $$;
+
+revoke all on function public.is_admin() from public, anon;
+revoke all on function public.admin_reset_password(text, text) from public, anon;
+grant execute on function public.is_admin() to authenticated;
+grant execute on function public.admin_reset_password(text, text) to authenticated;

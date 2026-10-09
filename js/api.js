@@ -21,11 +21,17 @@ export function onAuthChange(cb) {
   // Supabase recommends not awaiting other calls inside this callback.
   sb.auth.onAuthStateChange((_event, session) => setTimeout(() => cb(session?.user ?? null), 0));
 }
-export const sendCode = email =>
-  sb.auth.signInWithOtp({ email, options: { shouldCreateUser: true, emailRedirectTo: location.origin + location.pathname } }).then(check);
-export const verifyCode = (email, token) => sb.auth.verifyOtp({ email, token, type: "email" }).then(check);
+// Requires "Confirm email" OFF in Supabase, so sign-up returns a session right away.
+export const signUp = (email, password) => sb.auth.signUp({ email, password }).then(check);
+export const signIn = (email, password) => sb.auth.signInWithPassword({ email, password }).then(check);
+export const changePassword = password => sb.auth.updateUser({ password }).then(check);
 export const signOut = () => sb.auth.signOut().then(check);
 export const deleteAccount = () => sb.rpc("delete_my_account").then(check);
+
+// ---------- admin ----------
+export const isAdmin = () => sb.rpc("is_admin").then(check);
+export const adminResetPassword = (email, password) =>
+  sb.rpc("admin_reset_password", { target_email: email, new_password: password }).then(check);
 
 // ---------- profile ----------
 export const loadProfile = () => sb.from("profiles").select("email,full_name,course_of_study,academic_year,year_of_study").single().then(check);
