@@ -1,0 +1,131 @@
+-- UniMi Timetable — database schema for Supabase.
+-- Run once in Supabase Dashboard → SQL Editor. Safe to re-run.
+
+-- ---------------------------------------------------------------------------
+-- Profiles: one row per user, created automatically on sign-up.
+-- ---------------------------------------------------------------------------
+create table if not exists public.profiles (
+  id              uuid primary key references auth.users (id) on delete cascade,
+  email           text not null,
+  full_name       text not null default '' check (char_length(full_name) <= 120),
+  course_of_study text not null default '' check (char_length(course_of_study) <= 300),
+  academic_year   text not null default '' check (char_length(academic_year) <= 20),
+  year_of_study   text not null default '' check (char_length(year_of_study) <= 60),
+  updated_at      timestamptz not null default now()
+);
+
+-- ---------------------------------------------------------------------------
+-- Sessions: one row per lesson slot (a 4h block from the export is stored as two 2h rows).
+-- source_key = "<date>_<HHMM>_<course-slug>" for imported rows; it lets a re-import
+-- match existing rows so user edits and notes survive.
+-- ---------------------------------------------------------------------------
+create table if not exists public.sessions (
+  id          uuid primary key default gen_random_uuid(),
+  user_id     uuid not null default auth.uid() references auth.users (id) on delete cascade,
+  date        date not null,
+  start_time  time not null,
+  end_time    time not null,
+  course      text not null check (char_length(course) between 1 and 200),
+  lecturer    text not null default '' check (char_length(lecturer) <= 300),
+  room        text not null default '' check (char_length(room) <= 200),
+  type        text not null default '' check (char_length(type) <= 50),
+  note        text not null default '' check (char_length(note) <= 2000),
+  source      text not null default 'manual' check (source in ('import', 'manual')),
+  source_key  text check (char_length(source_key) <= 120),
+  modified    boolean not null default false,
+  created_at  timestamptz not null default now(),
+  updated_at  timestamptz not null default now(),
+  check (end_time > start_time),
+  unique (user_id, source_key)
+);
+create index if not exists sessions_user_date_idx on public.sessions (user_id, date);
+
+-- ---------------------------------------------------------------------------
+-- Row Level Security: every user sees and edits only their own rows.
+-- ---------------------------------------------------------------------------
+alter table public.profiles enable row level security;
+alter table public.sessions enable row level security;
+
+drop policy if exists "own profile read"   on public.profiles;
+drop policy if exists "own profile update" on public.profiles;
+create policy "own profile read"   on public.profiles for select to authenticated using (id = (select auth.uid()));
+create policy "own profile update" on public.profiles for update to authenticated
+  using (id = (select auth.uid())) with check (id = (select auth.uid()));
+
+drop policy if exists "own sessions" on public.sessions;
+create policy "own sessions" on public.sessions for all to authenticated
+  using (user_id = (select auth.uid())) with check (user_id = (select auth.uid()));
+
+-- Users may not change their stored email through the API.
+revoke update (email) on public.profiles from authenticated;
+
+-- ---------------------------------------------------------------------------
+-- Triggers
+-- ---------------------------------------------------------------------------
+-- 1) Only @studenti.unimi.it addresses can create an account (server-side guard;
+--    the web page also checks, but that check can be bypassed).
+create or replace function public.enforce_email_domain()
+returns trigger language plpgsql security definer set search_path = '' as $$
+begin
+  if lower(coalesce(new.email, '')) not like '%@studenti.unimi.it' then
+    raise exception 'Only @studenti.unimi.it email addresses are allowed';
+  end if;
+  return new;
+end $$;
+
+drop trigger if exists enforce_email_domain on auth.users;
+create trigger enforce_email_domain before insert on auth.users
+  for each row execute function public.enforce_email_domain();
+
+-- 2) Create the profile row for each new user.
+create or replace function public.handle_new_user()
+returns trigger language plpgsql security definer set search_path = '' as $$
+begin
+  insert into public.profiles (id, email) values (new.id, new.email) on conflict (id) do nothing;
+  return new;
+end $$;
+
+drop trigger if exists on_auth_user_created on auth.users;
+create trigger on_auth_user_created after insert on auth.users
+  for each row execute function public.handle_new_user();
+
+-- 3) Keep updated_at current.
+create or replace function public.touch_updated_at()
+returns trigger language plpgsql set search_path = '' as $$
+begin
+  new.updated_at = now();
+  return new;
+end $$;
+
+drop trigger if exists profiles_touch on public.profiles;
+create trigger profiles_touch before update on public.profiles
+  for each row execute function public.touch_updated_at();
+drop trigger if exists sessions_touch on public.sessions;
+create trigger sessions_touch before update on public.sessions
+  for each row execute function public.touch_updated_at();
+
+-- 4) Cap rows per user so one account cannot fill the free-tier database.
+create or replace function public.limit_sessions_per_user()
+returns trigger language plpgsql security definer set search_path = '' as $$
+begin
+  if (select count(*) from public.sessions where user_id = new.user_id) >= 3000 then
+    raise exception 'Session limit reached (3000 per user)';
+  end if;
+  return new;
+end $$;
+
+drop trigger if exists sessions_limit on public.sessions;
+create trigger sessions_limit before insert on public.sessions
+  for each row execute function public.limit_sessions_per_user();
+
+-- ---------------------------------------------------------------------------
+-- GDPR: let a signed-in user delete their own account (profile + sessions cascade).
+-- ---------------------------------------------------------------------------
+create or replace function public.delete_my_account()
+returns void language plpgsql security definer set search_path = '' as $$
+begin
+  delete from auth.users where id = auth.uid();
+end $$;
+
+revoke all on function public.delete_my_account() from public, anon;
+grant execute on function public.delete_my_account() to authenticated;

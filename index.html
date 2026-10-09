@@ -1,0 +1,130 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>UniMi Timetable</title>
+<meta name="description" content="Weekly timetable for University of Milan students — import your .xls export, edit lessons, add notes. Unofficial.">
+<link rel="stylesheet" href="css/style.css">
+<script type="module" src="js/app.js"></script>
+</head>
+<body>
+
+<div id="view-loading" class="center-view"><div class="spinner" aria-label="Loading"></div></div>
+
+<!-- ======================= Login ======================= -->
+<div id="view-login" class="center-view" hidden>
+  <div class="card login-card">
+    <h1>UniMi Timetable</h1>
+    <p class="muted">Your weekly lesson grid, with your own edits and notes.</p>
+
+    <form id="emailForm" novalidate>
+      <div id="stepEmail">
+        <label>University email
+          <input type="email" id="loginEmail" placeholder="name.surname@studenti.unimi.it" autocomplete="email" required>
+        </label>
+        <label class="check"><input type="checkbox" id="rememberMe" checked> Keep me signed in on this device</label>
+        <div class="err" id="loginErr"></div>
+        <button class="primary wide" id="sendBtn">Send sign-in code</button>
+        <p class="muted small">No password needed. We'll email you a 6-digit code and a sign-in link.<br>New here? Your account is created on first sign-in.</p>
+      </div>
+    </form>
+
+    <form id="codeForm" novalidate>
+      <div id="stepCode" hidden>
+        <p>We sent a code to <b id="sentTo"></b>.<br><span class="muted small">Enter it below, or click the link in the email (open it in this browser).</span></p>
+        <label>6-digit code
+          <input id="loginCode" inputmode="numeric" autocomplete="one-time-code" maxlength="10" pattern="[0-9]*" required>
+        </label>
+        <div class="err" id="codeErr"></div>
+        <button class="primary wide" id="verifyBtn">Sign in</button>
+        <div class="row-between">
+          <button type="button" class="link" id="changeEmail">Use another email</button>
+          <button type="button" class="link" id="resendBtn">Resend code</button>
+        </div>
+      </div>
+    </form>
+    <p class="muted tiny">Unofficial student project — not affiliated with Università degli Studi di Milano.</p>
+  </div>
+</div>
+
+<!-- ======================= App ======================= -->
+<div id="view-app" hidden>
+  <header class="topbar">
+    <div class="brand">UniMi Timetable</div>
+    <nav class="weeknav">
+      <button id="prevWeek" title="Previous week (←)" aria-label="Previous week">‹</button>
+      <button id="thisWeek">This week</button>
+      <button id="nextWeek" title="Next week (→)" aria-label="Next week">›</button>
+      <span class="week-label" id="weekLabel"></span>
+      <input type="date" id="jumpDate" title="Go to the week of…" aria-label="Go to date">
+    </nav>
+    <div class="actions-bar">
+      <button class="primary" id="addBtn">+ Add lesson</button>
+      <label class="btn" id="importLabel" for="xlsFile">Import .xls</label>
+      <input type="file" id="xlsFile" accept=".xls,.xlsx" hidden>
+      <button id="profileBtn" title="Profile"><span id="userName"></span></button>
+      <button id="signOutBtn">Sign out</button>
+    </div>
+  </header>
+  <main id="main"></main>
+</div>
+
+<!-- ======================= Edit lesson ======================= -->
+<dialog id="editDlg">
+  <form id="editForm">
+    <h3 id="editTitle">Edit lesson</h3>
+    <label>Course <input name="course" list="courseList" maxlength="200" required></label>
+    <div class="row3">
+      <label>Date <input type="date" name="date" required></label>
+      <label>Start <input type="time" name="start" step="300" required></label>
+      <label>End <input type="time" name="end" step="300" required></label>
+    </div>
+    <label>Lecturer <input name="lecturer" list="lecturerList" maxlength="300"></label>
+    <div class="row2">
+      <label>Room <input name="room" list="roomList" maxlength="200"></label>
+      <label>Type <input name="type" list="typeList" maxlength="50" placeholder="Lezione"></label>
+    </div>
+    <label>Note <textarea name="note" maxlength="2000" placeholder="Anything to remember for this lesson…"></textarea></label>
+    <div class="err" id="editErr"></div>
+    <div class="dlg-actions">
+      <button type="button" class="danger push-left" id="delBtn">Delete</button>
+      <button type="button" id="cancelBtn">Cancel</button>
+      <button class="primary" id="saveBtn">Save</button>
+    </div>
+  </form>
+</dialog>
+
+<!-- ======================= Profile ======================= -->
+<dialog id="profileDlg">
+  <form id="profileForm">
+    <h3>Profile</h3>
+    <label>Email <input name="email" readonly></label>
+    <label>Full name <input name="full_name" maxlength="120" autocomplete="name"></label>
+    <label>Course of study <input name="course_of_study" maxlength="300" placeholder="e.g. Data Science for Economics and Health"></label>
+    <div class="row2">
+      <label>Academic year <input name="academic_year" maxlength="20" placeholder="2026/2027"></label>
+      <label>Year of study <input name="year_of_study" maxlength="60" placeholder="1"></label>
+    </div>
+    <div class="err" id="profileErr"></div>
+    <div class="dlg-actions">
+      <button type="button" class="push-left" id="exportBtn" title="Download all your data as JSON">Export my data</button>
+      <button type="button" id="profileCancel">Cancel</button>
+      <button class="primary" id="profileSave">Save</button>
+    </div>
+    <details class="danger-zone">
+      <summary>Delete account</summary>
+      <p class="muted small">Permanently deletes your account, profile and timetable.</p>
+      <button type="button" class="danger" id="deleteAccountBtn">Delete my account</button>
+    </details>
+  </form>
+</dialog>
+
+<datalist id="courseList"></datalist>
+<datalist id="lecturerList"></datalist>
+<datalist id="roomList"></datalist>
+<datalist id="typeList"><option value="Lezione"><option value="Esame"><option value="Laboratorio"><option value="Esercitazione"></datalist>
+
+<div id="toast" role="status" aria-live="polite"></div>
+</body>
+</html>
