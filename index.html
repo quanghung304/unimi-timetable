@@ -24,7 +24,7 @@
     </div>
 
     <form id="authForm" novalidate>
-      <label>University email
+      <label>Email
         <input type="email" id="authEmail" placeholder="name.surname@studenti.unimi.it" autocomplete="email" required>
       </label>
       <label>Password
@@ -56,8 +56,9 @@
     </nav>
     <div class="actions-bar">
       <button class="primary" id="addBtn">+ Add lesson</button>
-      <label class="btn" id="importLabel" for="xlsFile">Import .xls</label>
-      <input type="file" id="xlsFile" accept=".xls,.xlsx" hidden>
+      <label class="btn" id="importLabel" for="xlsFile">Import Excel</label>
+      <input type="file" id="xlsFile" accept=".xls,.xlsx,.csv" hidden>
+      <button id="helpBtn" title="How to use">? Help</button>
       <button id="profileBtn" title="Profile"><span id="userName"></span></button>
       <button id="signOutBtn">Sign out</button>
     </div>
@@ -118,6 +119,53 @@
   </form>
 </dialog>
 
+<!-- ======================= How-to guide ======================= -->
+<dialog id="guideDlg" class="guide">
+  <div class="guide-body">
+    <h3>How to use UniMi Timetable</h3>
+    <p class="muted small">Import your timetable once, then see it week by week. Click a lesson to edit it or add a note.</p>
+
+    <div class="tabs" role="tablist">
+      <button type="button" role="tab" class="active" aria-selected="true" data-guide="unimi">UniMi students</button>
+      <button type="button" role="tab" aria-selected="false" data-guide="other">Other universities</button>
+    </div>
+
+    <section data-guide-panel="unimi">
+      <ol class="steps">
+        <li>Sign in to <b>Orari</b>, UniMi's timetable website.</li>
+        <li>Choose the timetable of <b>your course of study</b> (and year).</li>
+        <li>Switch to the <b>Events List</b> view.</li>
+        <li>Click <b>Export Excel</b> — you get an <code>.xls</code> file.</li>
+        <li>Here, click <b>Import Excel</b> and choose that file.</li>
+      </ol>
+    </section>
+
+    <section data-guide-panel="other" hidden>
+      <ol class="steps">
+        <li>Download the template: <button type="button" class="link" id="templateBtn">timetable-template.xlsx</button></li>
+        <li>Fill in <b>one row per lesson</b> under the header row:
+          <b>Day</b> as <code>dd-mm-yyyy</code>, <b>Hour</b> as <code>HH:MM - HH:MM</code> (24-hour), <b>Course</b>.
+          Lecturer, Room and Notes are optional. Don't rename the header.</li>
+        <li>Save the file (.xlsx, .xls or .csv).</li>
+        <li>Here, click <b>Import Excel</b> and choose that file.</li>
+      </ol>
+    </section>
+
+    <div class="tips">
+      <b>Good to know</b>
+      <ul>
+        <li>4-hour (or 6-hour) blocks are split into 2-hour slots.</li>
+        <li>Importing a newer file again keeps your notes and edits.</li>
+        <li>Extra courses (e.g. a language class)? <b>+ Add lesson</b> → tick <b>Repeat weekly</b>.</li>
+        <li>Open this guide again any time with <b>? Help</b>.</li>
+      </ul>
+    </div>
+    <div class="dlg-actions">
+      <button type="button" class="primary" id="guideClose" autofocus>Got it</button>
+    </div>
+  </div>
+</dialog>
+
 <!-- ======================= Profile ======================= -->
 <dialog id="profileDlg">
   <form id="profileForm">
@@ -152,7 +200,7 @@
       <summary>Admin · reset a user's password</summary>
       <p class="muted small">Sets a temporary password. Tell the student, and ask them to change it under Profile.</p>
       <div class="row2 eq">
-        <label>User email <input type="email" name="email" placeholder="name.surname@studenti.unimi.it" required></label>
+        <label>User email <input type="email" name="email" placeholder="student@university.it" required></label>
         <label>Temporary password <input type="text" name="pw" minlength="6" autocomplete="off" required></label>
       </div>
       <div class="err" id="adminErr"></div>

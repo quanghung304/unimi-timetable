@@ -13,6 +13,8 @@ create table if not exists public.profiles (
   year_of_study   text not null default '' check (char_length(year_of_study) <= 60),
   updated_at      timestamptz not null default now()
 );
+-- Set once the user has seen the how-to guide (shown automatically on first sign-in).
+alter table public.profiles add column if not exists guide_seen boolean not null default false;
 
 -- ---------------------------------------------------------------------------
 -- Sessions: one row per lesson slot (a 4h block from the export is stored as two 2h rows).
@@ -67,20 +69,10 @@ revoke update (email) on public.profiles from authenticated;
 -- ---------------------------------------------------------------------------
 -- Triggers
 -- ---------------------------------------------------------------------------
--- 1) Only @studenti.unimi.it addresses can create an account (server-side guard;
---    the web page also checks, but that check can be bypassed).
-create or replace function public.enforce_email_domain()
-returns trigger language plpgsql security definer set search_path = '' as $$
-begin
-  if lower(coalesce(new.email, '')) not like '%@studenti.unimi.it' then
-    raise exception 'Only @studenti.unimi.it email addresses are allowed';
-  end if;
-  return new;
-end $$;
-
+-- 1) Sign-up is open to any email address (students of other universities too).
+--    Removes the earlier @studenti.unimi.it-only guard if it was installed.
 drop trigger if exists enforce_email_domain on auth.users;
-create trigger enforce_email_domain before insert on auth.users
-  for each row execute function public.enforce_email_domain();
+drop function if exists public.enforce_email_domain();
 
 -- 2) Create the profile row for each new user.
 create or replace function public.handle_new_user()

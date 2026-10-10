@@ -14,7 +14,7 @@ timetable-app/
 │  ├─ grid.js          vẽ grid tuần
 │  ├─ dates.js
 │  └─ app.js           điều phối UI
-├─ supabase/schema.sql bảng, RLS, trigger giới hạn @studenti.unimi.it, xóa tài khoản
+├─ supabase/schema.sql bảng, RLS, admin, xóa tài khoản
 └─ _headers            security headers cho Cloudflare Pages
 ```
 
@@ -48,7 +48,7 @@ update auth.users
 Đăng nhập app bằng mật khẩu tạm rồi đổi lại ở *Profile → Change password*. Cách này dùng được cho mọi tài khoản.
 Vì tài khoản Supabase (hoặc GitHub dùng để đăng nhập Supabase) là "chìa khóa tổng", hãy bật **xác minh 2 bước** cho nó.
 
-> Lưu ý: vì không xác minh email, về lý thuyết một người có thể đăng ký bằng địa chỉ `@studenti.unimi.it` của người khác (nếu người đó chưa có tài khoản). Dữ liệu ở đây chỉ là thời khóa biểu nên rủi ro thấp; khi cần chặt hơn thì bật lại *Confirm email* + cấu hình SMTP.
+> Đăng ký mở cho **mọi email** (cả sinh viên trường khác). Vì không xác minh email, một người có thể đăng ký bằng địa chỉ của người khác (nếu người đó chưa có tài khoản). Dữ liệu ở đây chỉ là thời khóa biểu nên rủi ro thấp; khi cần chặt hơn thì bật lại *Confirm email* + cấu hình SMTP.
 
 "Ghi nhớ đăng nhập": phiên lưu trong `localStorage`, refresh token tự gia hạn — mặc định Supabase không giới hạn thời gian phiên, nên người dùng giữ đăng nhập đến khi bấm *Sign out*. Nếu bỏ tick *Keep me signed in*, phiên chỉ sống đến khi đóng trình duyệt.
 
@@ -74,6 +74,14 @@ python serve.py   # chạy ở thư mục gốc repo, đã tắt cache → sửa
 - Theo dõi dung lượng: Dashboard → Database → usage (giới hạn free 500 MB). Mỗi user bị giới hạn 3.000 buổi (trigger trong schema).
 - Backup: free tier không có backup tự động — định kỳ chạy `pg_dump` hoặc Dashboard → Database → Backups (Pro).
 
+## Hướng dẫn trong app
+
+Hộp thoại **How to use** tự mở ở lần đăng nhập đầu tiên của mỗi tài khoản (cờ `profiles.guide_seen`), mở lại bằng nút **? Help**. Hai tab:
+- **UniMi students**: Orari → chọn thời khóa biểu của ngành → *Events List* → *Export Excel* → *Import Excel* trong app.
+- **Other universities**: tải `timetable-template.xlsx` (app tự tạo, cùng cấu trúc với file export của Unimi + sheet hướng dẫn) → điền mỗi buổi một dòng → *Import Excel*.
+
+Import nhận `.xls`, `.xlsx`, `.csv`; dòng tiêu đề chỉ cần có các cột **Day**, **Hour**, **Course**.
+
 ## Lịch lặp lại (cả kỳ)
 
 *+ Add lesson* → tick **Repeat weekly** → chọn thứ (có thể nhiều thứ), ngày bắt đầu và **Until** (ngày cuối). App tạo từng buổi riêng (tối đa 200) và gắn chung một `series_id`.
@@ -84,7 +92,7 @@ Ngày nghỉ lễ (vd. Natale) không tự bỏ qua — xóa riêng từng buổ
 
 ## Quy tắc import
 
-- Đọc sheet đầu tiên, tìm dòng tiêu đề `Weekday | Day | Hour | Course | Lecturer | … | Room | Notes`.
+- Đọc sheet đầu tiên, tìm dòng tiêu đề có các cột `Day`, `Hour`, `Course` (các cột `Lecturer`, `Room`, `Notes` tùy chọn). Giờ dạng `14:30 - 16:30` (chấp nhận cả `14.30-16.30`).
 - Buổi có thời lượng là **bội số của 2 giờ** (4h, 6h…) được tách thành các ô 2h liên tiếp; buổi 2h, 3h… giữ nguyên.
 - Mỗi ô có khóa `ngày_giờ_môn`. Import lại: ô mới được thêm, ô chưa sửa được cập nhật (giữ ghi chú), ô đã sửa được giữ nguyên, ô biến mất khỏi file (chưa sửa, không ghi chú) bị xóa.
 - Ghi chú hướng dẫn in PDF trong cột Notes của file export bị bỏ qua.

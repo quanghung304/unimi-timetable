@@ -1,4 +1,3 @@
-import { ALLOWED_EMAIL_DOMAIN } from "./config.js";
 import { remember } from "./supabase.js";
 import * as api from "./api.js";
 import { parseWorkbook, planMerge } from "./importer.js";
@@ -79,7 +78,7 @@ function authError(e) {
   const m = errMsg(e);
   if (/invalid login credentials/i.test(m)) return "Wrong email or password.";
   if (/already registered|already exists/i.test(m)) return "This email already has an account. Sign in instead.";
-  if (/studenti\.unimi\.it|database error saving new user/i.test(m)) return `Only @${ALLOWED_EMAIL_DOMAIN} addresses can sign up.`;
+  if (/database error saving new user/i.test(m)) return "Could not create the account. Please try again.";
   if (/rate limit|too many/i.test(m)) return "Too many attempts. Please wait a minute and try again.";
   return m;
 }
@@ -90,7 +89,7 @@ $("authForm").addEventListener("submit", e => {
   const pw = $("authPassword").value;
   const err = $("authErr");
   err.textContent = "";
-  if (!email.endsWith("@" + ALLOWED_EMAIL_DOMAIN)) { err.textContent = `Please use your @${ALLOWED_EMAIL_DOMAIN} address.`; return; }
+  if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) { err.textContent = "Please enter a valid email address."; return; }
   if (pw.length < MIN_PASSWORD) { err.textContent = `Password must be at least ${MIN_PASSWORD} characters.`; return; }
   if (mode === "signup" && pw !== $("authPassword2").value) { err.textContent = "Passwords do not match."; return; }
   remember.set($("rememberMe").checked);
@@ -122,6 +121,7 @@ async function enterApp(user) {
   api.isAdmin().then(yes => { $("adminForm").hidden = !yes; }).catch(() => {});
   show("app");
   render();
+  maybeShowGuide();
 }
 
 function render() {
@@ -131,8 +131,9 @@ function render() {
   const main = $("main");
   if (!state.sessions.length) {
     main.innerHTML = `<div class="empty"><h2>No timetable yet</h2>
-      <p>Export your timetable from the UniMi website as <b>.xls</b>, then click <b>Import .xls</b>.<br>
-      You can also add lessons by hand with <b>+ Add lesson</b>.</p></div>`;
+      <p>Import the Excel export of your timetable with <b>Import Excel</b>,
+      or add lessons by hand with <b>+ Add lesson</b>.</p>
+      <p><button type="button" class="primary" data-open-guide>Show me how</button></p></div>`;
   } else {
     const keys = new Set([0, 1, 2, 3, 4].map(i => toKey(addDays(ws, i))));
     renderWeek(main, ws, state.sessions.filter(s => keys.has(s.date)), courseColors(state.sessions));
@@ -367,6 +368,75 @@ async function prefillProfile(meta) {
     Object.assign(state.profile, patch);
   } catch { /* not critical */ }
 }
+
+// ---------- how-to guide ----------
+// Shown automatically once per account: it is marked as seen as soon as it opens
+// (profiles.guide_seen, plus a per-device fallback in case the column is missing).
+// "? Help" reopens it any time.
+const guideDlg = $("guideDlg");
+const guideKey = () => `tt.guideSeen.${state.user?.id}`;
+
+function openGuide(tab = "unimi") {
+  setGuideTab(tab);
+  guideDlg.showModal();
+}
+function setGuideTab(tab) {
+  guideDlg.querySelectorAll("[data-guide]").forEach(b => {
+    b.classList.toggle("active", b.dataset.guide === tab);
+    b.setAttribute("aria-selected", String(b.dataset.guide === tab));
+  });
+  guideDlg.querySelectorAll("[data-guide-panel]").forEach(p => p.hidden = p.dataset.guidePanel !== tab);
+}
+function maybeShowGuide() {
+  let seenHere = false;
+  try { seenHere = localStorage.getItem(guideKey()) === "1"; } catch { /* ignore */ }
+  if (state.profile?.guide_seen || seenHere) return;
+  openGuide();
+  markGuideSeen();
+}
+function markGuideSeen() {
+  try { localStorage.setItem(guideKey(), "1"); } catch { /* ignore */ }
+  if (state.profile && !state.profile.guide_seen) {
+    state.profile.guide_seen = true;
+    api.saveProfile(state.user.id, { guide_seen: true }).catch(() => {});
+  }
+}
+
+guideDlg.querySelectorAll("[data-guide]").forEach(b => b.onclick = () => setGuideTab(b.dataset.guide));
+$("guideClose").onclick = () => guideDlg.close();
+$("helpBtn").onclick = () => openGuide();
+$("main").addEventListener("click", e => { if (e.target.closest("[data-open-guide]")) openGuide(); });
+
+// Template for students of other universities: same layout as the UniMi export.
+$("templateBtn").onclick = async () => {
+  try {
+    const XLSX = await import(SHEETJS_URL);
+    const sheet = XLSX.utils.aoa_to_sheet([
+      ["Academic year: 2026/2027"],
+      ["Course of study: <your course of study>"],
+      ["Year of study: 1"],
+      [], [],
+      ["Weekday", "Day", "Hour", "Course", "Lecturer", "Academic trail", "Room", "Notes"],
+      ["Monday", "12-10-2026", "09:30 - 11:30", "Microeconomics", "Rossi Mario", "", "Aula 1", ""],
+      ["Monday", "12-10-2026", "14:30 - 18:30", "Data Analysis Lab", "Bianchi Anna", "", "Lab 3", "4h block: shown as two 2h slots"],
+      ["Wednesday", "14-10-2026", "11:30 - 13:30", "Microeconomics", "Rossi Mario", "", "Aula 1", ""],
+    ]);
+    sheet["!cols"] = [11, 12, 15, 34, 22, 14, 16, 32].map(wch => ({ wch }));
+    const help = XLSX.utils.aoa_to_sheet([
+      ["How to fill in this template"],
+      ["• One row per lesson, below the header row (Weekday, Day, Hour, Course…). Don't rename or move the header."],
+      ["• Day: dd-mm-yyyy, e.g. 12-10-2026.   Hour: HH:MM - HH:MM in 24-hour time, e.g. 14:30 - 16:30."],
+      ["• Course is required. Weekday, Lecturer, Academic trail, Room and Notes are optional."],
+      ["• Rows 1–3 (Academic year, Course of study, Year of study) fill in your profile; you can leave them out."],
+      ["• Replace the example rows with your own. Only the first sheet is imported."],
+    ]);
+    help["!cols"] = [{ wch: 110 }];
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, sheet, "Timetable");
+    XLSX.utils.book_append_sheet(wb, help, "How to fill in");
+    XLSX.writeFile(wb, "timetable-template.xlsx");
+  } catch (ex) { toast("Could not create the template: " + errMsg(ex), true); }
+};
 
 // ---------- profile ----------
 const pDlg = $("profileDlg"), pForm = $("profileForm");

@@ -35,7 +35,7 @@ export const adminResetPassword = (email, password) =>
   sb.rpc("admin_reset_password", { target_email: email, new_password: password }).then(check);
 
 // ---------- profile ----------
-export const loadProfile = () => sb.from("profiles").select("email,full_name,course_of_study,academic_year,year_of_study").single().then(check);
+export const loadProfile = () => sb.from("profiles").select("*").single().then(check);
 export const saveProfile = (userId, p) => sb.from("profiles").update(p).eq("id", userId).then(check);
 
 // ---------- sessions ----------
