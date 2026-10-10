@@ -1,7 +1,7 @@
 // Renders one Mon–Fri week as a CSS grid of 30-minute rows.
 import { toKey, addDays, toMin, fmtMin, ddmm } from "./dates.js";
 
-const DAY_NAMES = ["Mon", "Tue", "Wed", "Thu", "Fri"];
+const DAY_NAMES = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 const PALETTE = [
   { bg: "#dcfce7", border: "#16a34a" }, { bg: "#fef9c3", border: "#ca8a04" },
   { bg: "#dbeafe", border: "#2563eb" }, { bg: "#fce7f3", border: "#db2777" },
@@ -11,14 +11,17 @@ const PALETTE = [
 
 // Stable colour per course, computed over ALL of the user's courses (not just the visible
 // week): each course hashes to a palette slot; on a clash it takes the next free slot.
-// Processing in name order keeps the result the same every time for the same courses.
+// Courses are processed by first date, so a course added later (e.g. a language class)
+// never takes the colour of a course that was already there.
 function hash(str) {
   let h = 0;
   for (const ch of str) h = (h * 31 + ch.codePointAt(0)) >>> 0;
   return h;
 }
 export function courseColors(allSessions) {
-  const courses = [...new Set(allSessions.map(s => s.course))].sort();
+  const first = new Map();
+  for (const s of allSessions) if (!first.has(s.course) || s.date < first.get(s.course)) first.set(s.course, s.date);
+  const courses = [...first.keys()].sort((a, b) => first.get(a).localeCompare(first.get(b)) || a.localeCompare(b));
   const used = new Set(), map = new Map();
   for (const c of courses) {
     let slot = hash(c.toLowerCase()) % PALETTE.length;
@@ -63,9 +66,10 @@ function layoutDay(list) {
   return out;
 }
 
-export function renderWeek(container, weekStart, sessions, colors) {
+// nDays: 5 (Mon–Fri) or 7 (Mon–Sun). note: optional line shown under the grid.
+export function renderWeek(container, weekStart, sessions, colors, nDays = 5, note = "") {
   const color = c => colors.get(c) || PALETTE[PALETTE.length - 1];
-  const days = [0, 1, 2, 3, 4].map(i => addDays(weekStart, i));
+  const days = Array.from({ length: nDays }, (_, i) => addDays(weekStart, i));
   const dayKeys = days.map(toKey);
   const todayKey = toKey(new Date());
   const { lo, hi } = timeRange(sessions);
@@ -73,13 +77,13 @@ export function renderWeek(container, weekStart, sessions, colors) {
 
   let html = `<div class="corner"></div>`;
   days.forEach((d, i) => {
-    html += `<div class="day-head${dayKeys[i] === todayKey ? " today" : ""}" style="grid-column:${i + 2};grid-row:1">${DAY_NAMES[i]} ${ddmm(d)}</div>`;
+    html += `<div class="day-head${dayKeys[i] === todayKey ? " today" : ""}${i >= 5 ? " weekend" : ""}" style="grid-column:${i + 2};grid-row:1">${DAY_NAMES[i]} ${ddmm(d)}</div>`;
   });
   for (let k = 0; k < nSlots; k++) {
     const m = lo + k * 30, row = k + 2;
     html += `<div class="time${m % 60 ? " half" : ""}" style="grid-column:1;grid-row:${row}">${fmtMin(m)}</div>`;
     dayKeys.forEach((dk, i) => {
-      html += `<div class="slot${m % 60 ? " half" : ""}${dk === todayKey ? " today" : ""}" data-date="${dk}" data-min="${m}" style="grid-column:${i + 2};grid-row:${row}"></div>`;
+      html += `<div class="slot${m % 60 ? " half" : ""}${dk === todayKey ? " today" : i >= 5 ? " weekend" : ""}" data-date="${dk}" data-min="${m}" style="grid-column:${i + 2};grid-row:${row}"></div>`;
     });
   }
 
@@ -105,8 +109,10 @@ export function renderWeek(container, weekStart, sessions, colors) {
     }
   });
 
-  container.innerHTML = `<div class="grid-wrap"><div class="grid" style="grid-template-rows:auto repeat(${nSlots}, var(--slot-h))">${html}</div></div>` +
-    (count ? "" : `<p class="week-empty">No sessions this week.</p>`);
+  const cols = `grid-template-columns:56px repeat(${nDays}, minmax(${nDays > 5 ? 115 : 130}px, 1fr));min-width:${56 + nDays * (nDays > 5 ? 115 : 130)}px`;
+  const msgs = [count ? "" : "No sessions this week.", note].filter(Boolean).join(" ");
+  container.innerHTML = `<div class="grid-wrap"><div class="grid" style="${cols};grid-template-rows:auto repeat(${nSlots}, var(--slot-h))">${html}</div></div>` +
+    (msgs ? `<p class="week-empty">${esc(msgs)}</p>` : "");
   const grid = container.querySelector(".grid");
   grid.dataset.lo = lo;
   grid.dataset.hi = hi;

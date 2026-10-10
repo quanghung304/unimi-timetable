@@ -124,9 +124,41 @@ async function enterApp(user) {
   maybeShowGuide();
 }
 
+// ---------- weekend columns ----------
+// auto: Sat/Sun columns appear only in weeks that have weekend sessions; show / hide: always.
+const WEEKEND_KEY = "tt.weekend";
+const WEEKEND_LABEL = { auto: "Auto", show: "Shown", hide: "Hidden" };
+let weekendMode = "auto";
+try { weekendMode = localStorage.getItem(WEEKEND_KEY) || "auto"; } catch { /* ignore */ }
+if (!WEEKEND_LABEL[weekendMode]) weekendMode = "auto";
+
+const weekendKeys = ws => [5, 6].map(i => toKey(addDays(ws, i)));
+function showWeekend(ws = state.weekStart) {
+  if (weekendMode !== "auto") return weekendMode === "show";
+  const keys = weekendKeys(ws);
+  return state.sessions.some(s => keys.includes(s.date));
+}
+
+function setWeekendMode(mode) {
+  weekendMode = mode;
+  try { localStorage.setItem(WEEKEND_KEY, mode); } catch { /* ignore */ }
+  render();
+}
+function toggleWeekendPop(open) {
+  $("weekendPop").hidden = !open;
+  $("weekendBtn").setAttribute("aria-expanded", String(open));
+  if (open) $("weekendPop").querySelector(`input[value="${weekendMode}"]`).checked = true;
+}
+$("weekendBtn").onclick = e => { e.stopPropagation(); toggleWeekendPop($("weekendPop").hidden); };
+$("weekendPop").addEventListener("change", e => { setWeekendMode(e.target.value); toggleWeekendPop(false); });
+$("weekendPop").addEventListener("click", e => e.stopPropagation());
+document.addEventListener("click", () => toggleWeekendPop(false));
+document.addEventListener("keydown", e => { if (e.key === "Escape") toggleWeekendPop(false); });
+
 function render() {
-  const ws = state.weekStart, fri = addDays(ws, 4);
-  $("weekLabel").textContent = `${ddmm(ws)} – ${ddmm(fri)}/${fri.getFullYear()}`;
+  const ws = state.weekStart, nDays = showWeekend() ? 7 : 5, last = addDays(ws, nDays - 1);
+  $("weekLabel").textContent = `${ddmm(ws)} – ${ddmm(last)}/${last.getFullYear()}`;
+  $("weekendBtn").textContent = `Weekend: ${WEEKEND_LABEL[weekendMode]} ▾`;
   $("jumpDate").value = toKey(ws);
   const main = $("main");
   if (!state.sessions.length) {
@@ -135,8 +167,10 @@ function render() {
       or add lessons and exams by hand with <b>+ Add session</b>.</p>
       <p><button type="button" class="primary" data-open-guide>Show me how</button></p></div>`;
   } else {
-    const keys = new Set([0, 1, 2, 3, 4].map(i => toKey(addDays(ws, i))));
-    renderWeek(main, ws, state.sessions.filter(s => keys.has(s.date)), courseColors(state.sessions));
+    const keys = new Set(Array.from({ length: nDays }, (_, i) => toKey(addDays(ws, i))));
+    const hidden = nDays === 5 ? state.sessions.filter(s => weekendKeys(ws).includes(s.date)).length : 0;
+    const note = hidden ? `${hidden} weekend session${hidden > 1 ? "s" : ""} hidden — change “Weekend” above to see ${hidden > 1 ? "them" : "it"}.` : "";
+    renderWeek(main, ws, state.sessions.filter(s => keys.has(s.date)), courseColors(state.sessions), nDays, note);
   }
   fillDatalists();
 }
@@ -266,8 +300,9 @@ $("main").addEventListener("click", e => {
   }
 });
 $("addBtn").onclick = () => {
-  // Today if it is a weekday of the shown week, else that week's Monday (the grid shows Mon–Fri).
-  const now = new Date(), inWeek = mondayOf(now).getTime() === state.weekStart.getTime() && now.getDay() % 6 !== 0;
+  // Today if it is a visible day of the shown week, else that week's Monday.
+  const now = new Date();
+  const inWeek = mondayOf(now).getTime() === state.weekStart.getTime() && (now.getDay() % 6 !== 0 || showWeekend());
   openEditor(null, { date: toKey(inWeek ? now : state.weekStart), start: "09:30", end: "11:30" });
 };
 $("cancelBtn").onclick = () => dlg.close();

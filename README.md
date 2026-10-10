@@ -96,6 +96,11 @@ Nút **💬 Feedback**: người dùng gửi **đánh giá** (1–5 sao), **báo
 Admin xem tất cả ở *🛠 Admin → Feedback*: lọc theo loại/trạng thái, xem điểm trung bình, đổi trạng thái (New / In progress / Done / Won't fix) và trả lời.
 Dữ liệu nằm ở bảng `public.feedback` (xem được cả trong Supabase → Table Editor). Mỗi người tối đa 20 tin / 24 giờ.
 
+## Tuần & cuối tuần
+
+Tuần chạy từ thứ 2 đến chủ nhật; mở app (hay bấm *This week*) luôn hiện tuần chứa ngày hôm nay.
+Nút **Weekend** trên thanh tuần: *Auto* (mặc định — cột thứ 7/CN chỉ hiện ở tuần có buổi cuối tuần), *Always show*, *Always hide* (khi ẩn mà tuần có buổi cuối tuần, dưới lưới hiện ghi chú số buổi bị ẩn). Lựa chọn lưu trên trình duyệt.
+
 ## Lịch lặp lại (cả kỳ)
 
 *+ Add session* → tick **Repeat weekly** → chọn thứ (có thể nhiều thứ), ngày bắt đầu và **Until** (ngày cuối). App tạo từng buổi riêng (tối đa 200) và gắn chung một `series_id`.

@@ -53,6 +53,15 @@
       <button id="nextWeek" title="Next week (→)" aria-label="Next week">›</button>
       <span class="week-label" id="weekLabel"></span>
       <input type="date" id="jumpDate" title="Go to the week of…" aria-label="Go to date">
+      <div class="view-menu">
+        <button type="button" id="weekendBtn" aria-haspopup="true" aria-expanded="false" title="Show or hide Saturday and Sunday">Weekend: Auto ▾</button>
+        <div class="popover" id="weekendPop" role="menu" hidden>
+          <b class="small">Saturday &amp; Sunday</b>
+          <label class="check"><input type="radio" name="weekend" value="auto"> <span>Auto<small>Show only in weeks that have weekend sessions</small></span></label>
+          <label class="check"><input type="radio" name="weekend" value="show"> <span>Always show</span></label>
+          <label class="check"><input type="radio" name="weekend" value="hide"> <span>Always hide</span></label>
+        </div>
+      </div>
     </nav>
     <div class="actions-bar">
       <button class="primary" id="addBtn" title="Add a lesson, exam or other session">+ Add session</button>
@@ -88,6 +97,8 @@
           <label class="day-chip"><input type="checkbox" value="2"> Wed</label>
           <label class="day-chip"><input type="checkbox" value="3"> Thu</label>
           <label class="day-chip"><input type="checkbox" value="4"> Fri</label>
+          <label class="day-chip"><input type="checkbox" value="5"> Sat</label>
+          <label class="day-chip"><input type="checkbox" value="6"> Sun</label>
         </div>
         <label>Until (last day) <input type="date" id="repeatUntil"></label>
         <p class="muted small" id="repeatPreview"></p>
