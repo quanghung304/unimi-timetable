@@ -3,8 +3,8 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>UniMi Timetable</title>
-<meta name="description" content="Weekly timetable for University of Milan students — import your .xls export, edit lessons, add notes. Unofficial.">
+<title>University Timetable</title>
+<meta name="description" content="Weekly timetable for university students — import your Excel timetable, edit lessons and exams, add notes.">
 <link rel="stylesheet" href="css/style.css">
 <script type="module" src="js/app.js"></script>
 </head>
@@ -15,8 +15,8 @@
 <!-- ======================= Login ======================= -->
 <div id="view-login" class="center-view" hidden>
   <div class="card login-card">
-    <h1>UniMi Timetable</h1>
-    <p class="muted">Your weekly lesson grid, with your own edits and notes.</p>
+    <h1>University Timetable</h1>
+    <p class="muted">Your weekly timetable of lessons and exams, with your own edits and notes.</p>
 
     <div class="tabs" role="tablist">
       <button type="button" role="tab" id="tabSignIn" class="active" aria-selected="true">Sign in</button>
@@ -46,7 +46,7 @@
 <!-- ======================= App ======================= -->
 <div id="view-app" hidden>
   <header class="topbar">
-    <div class="brand">UniMi Timetable</div>
+    <div class="brand">University Timetable</div>
     <nav class="weeknav">
       <button id="prevWeek" title="Previous week (←)" aria-label="Previous week">‹</button>
       <button id="thisWeek">This week</button>
@@ -55,7 +55,7 @@
       <input type="date" id="jumpDate" title="Go to the week of…" aria-label="Go to date">
     </nav>
     <div class="actions-bar">
-      <button class="primary" id="addBtn">+ Add lesson</button>
+      <button class="primary" id="addBtn" title="Add a lesson, exam or other session">+ Add session</button>
       <label class="btn" id="importLabel" for="xlsFile">Import Excel</label>
       <input type="file" id="xlsFile" accept=".xls,.xlsx,.csv" hidden>
       <button id="helpBtn" title="How to use">? Help</button>
@@ -65,13 +65,13 @@
     </div>
   </header>
   <main id="main"></main>
-  <footer class="site-footer">© 2026 Hung Cao · UniMi Timetable — unofficial student project, not affiliated with Università degli Studi di Milano.</footer>
+  <footer class="site-footer">© 2026 Hung Cao · University Timetable — unofficial student project, not affiliated with Università degli Studi di Milano.</footer>
 </div>
 
-<!-- ======================= Edit lesson ======================= -->
+<!-- ======================= Edit session ======================= -->
 <dialog id="editDlg">
   <form id="editForm">
-    <h3 id="editTitle">Edit lesson</h3>
+    <h3 id="editTitle">Edit session</h3>
     <label>Course <input name="course" list="courseList" maxlength="200" required></label>
     <div class="row3">
       <label><span id="dateLabel">Date</span> <input type="date" name="date" required></label>
@@ -93,9 +93,9 @@
       </div>
     </fieldset>
     <fieldset class="box" id="scopeBox" hidden>
-      <span class="small">This lesson is part of a weekly series. Save / delete:</span>
-      <label class="check"><input type="radio" name="scope" value="one" checked> This lesson only</label>
-      <label class="check"><input type="radio" name="scope" value="following"> This and all following lessons</label>
+      <span class="small">This session is part of a weekly series. Save / delete:</span>
+      <label class="check"><input type="radio" name="scope" value="one" checked> This session only</label>
+      <label class="check"><input type="radio" name="scope" value="following"> This and all following sessions</label>
     </fieldset>
     <label>Lecturer <input name="lecturer" list="lecturerList" maxlength="300"></label>
     <div class="row2">
@@ -110,7 +110,7 @@
         </select>
       </label>
     </div>
-    <label>Note <textarea name="note" maxlength="2000" placeholder="Anything to remember for this lesson…"></textarea></label>
+    <label>Note <textarea name="note" maxlength="2000" placeholder="Anything to remember for this session…"></textarea></label>
     <div class="err" id="editErr"></div>
     <div class="dlg-actions">
       <button type="button" class="danger push-left" id="delBtn">Delete</button>
@@ -123,8 +123,8 @@
 <!-- ======================= How-to guide ======================= -->
 <dialog id="guideDlg" class="guide">
   <div class="guide-body">
-    <h3>How to use UniMi Timetable</h3>
-    <p class="muted small">Import your timetable once, then see it week by week. Click a lesson to edit it or add a note.</p>
+    <h3>How to use University Timetable</h3>
+    <p class="muted small">Import your timetable once, then see it week by week. Click a session to edit it or add a note.</p>
 
     <div class="tabs" role="tablist">
       <button type="button" role="tab" class="active" aria-selected="true" data-guide="unimi">UniMi students</button>
@@ -144,7 +144,7 @@
     <section data-guide-panel="other" hidden>
       <ol class="steps">
         <li>Download the template: <button type="button" class="link" id="templateBtn">timetable-template.xlsx</button></li>
-        <li>Fill in <b>one row per lesson</b> under the header row:
+        <li>Fill in <b>one row per session</b> (lesson or exam) under the header row:
           <b>Day</b> as <code>dd-mm-yyyy</code>, <b>Hour</b> as <code>HH:MM - HH:MM</code> (24-hour), <b>Course</b>.
           Lecturer, Room and Notes are optional. Don't rename the header.</li>
         <li>Save the file (.xlsx, .xls or .csv).</li>
@@ -157,7 +157,7 @@
       <ul>
         <li>4-hour (or 6-hour) blocks are split into 2-hour slots.</li>
         <li>Importing a newer file again keeps your notes and edits.</li>
-        <li>Extra courses (e.g. a language class)? <b>+ Add lesson</b> → tick <b>Repeat weekly</b>.</li>
+        <li>Exams or extra courses (e.g. a language class)? <b>+ Add session</b>; for a weekly class tick <b>Repeat weekly</b>.</li>
         <li>Open this guide again any time with <b>? Help</b>.</li>
       </ul>
     </div>

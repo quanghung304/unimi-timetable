@@ -106,7 +106,7 @@ export function renderWeek(container, weekStart, sessions, colors) {
   });
 
   container.innerHTML = `<div class="grid-wrap"><div class="grid" style="grid-template-rows:auto repeat(${nSlots}, var(--slot-h))">${html}</div></div>` +
-    (count ? "" : `<p class="week-empty">No lessons this week.</p>`);
+    (count ? "" : `<p class="week-empty">No sessions this week.</p>`);
   const grid = container.querySelector(".grid");
   grid.dataset.lo = lo;
   grid.dataset.hi = hi;

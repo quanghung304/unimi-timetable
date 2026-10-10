@@ -1,6 +1,6 @@
-# UniMi Timetable
+# University Timetable
 
-Web xem/sửa thời khóa biểu theo tuần cho sinh viên Unimi. Đăng nhập bằng email + mật khẩu. Web tĩnh (HTML + ES modules, không cần build) + Supabase (Auth + Postgres).
+Web xem/sửa thời khóa biểu theo tuần cho sinh viên (Unimi và các trường khác). Đăng nhập bằng email + mật khẩu. Web tĩnh (HTML + ES modules, không cần build) + Supabase (Auth + Postgres).
 
 ```
 timetable-app/
@@ -90,7 +90,7 @@ Dữ liệu nằm ở bảng `public.feedback` (xem được cả trong Supabase
 
 ## Lịch lặp lại (cả kỳ)
 
-*+ Add lesson* → tick **Repeat weekly** → chọn thứ (có thể nhiều thứ), ngày bắt đầu và **Until** (ngày cuối). App tạo từng buổi riêng (tối đa 200) và gắn chung một `series_id`.
+*+ Add session* → tick **Repeat weekly** → chọn thứ (có thể nhiều thứ), ngày bắt đầu và **Until** (ngày cuối). App tạo từng buổi riêng (tối đa 200) và gắn chung một `series_id`.
 Khi sửa/xóa một buổi trong chuỗi: chọn **This lesson only** hoặc **This and all following lessons** — môn, giờ, phòng, giảng viên, loại áp dụng cho các buổi từ buổi đó trở đi; ngày và ghi chú chỉ áp dụng cho buổi đang mở.
 Ngày nghỉ lễ (vd. Natale) không tự bỏ qua — xóa riêng từng buổi đó với *This lesson only*.
 

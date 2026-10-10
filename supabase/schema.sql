@@ -1,4 +1,4 @@
--- UniMi Timetable — database schema for Supabase.
+-- University Timetable — database schema for Supabase.
 -- Run once in Supabase Dashboard → SQL Editor. Safe to re-run.
 
 -- ---------------------------------------------------------------------------

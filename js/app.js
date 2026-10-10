@@ -133,7 +133,7 @@ function render() {
   if (!state.sessions.length) {
     main.innerHTML = `<div class="empty"><h2>No timetable yet</h2>
       <p>Import the Excel export of your timetable with <b>Import Excel</b>,
-      or add lessons by hand with <b>+ Add lesson</b>.</p>
+      or add lessons and exams by hand with <b>+ Add session</b>.</p>
       <p><button type="button" class="primary" data-open-guide>Show me how</button></p></div>`;
   } else {
     const keys = new Set([0, 1, 2, 3, 4].map(i => toKey(addDays(ws, i))));
@@ -210,7 +210,7 @@ function setType(v) {
 function openEditor(session, defaults) {
   state.editingId = session ? session.id : null;
   const s = session || { type: "", ...defaults };
-  $("editTitle").textContent = session ? "Edit lesson" : "Add lesson";
+  $("editTitle").textContent = session ? "Edit session" : "Add session";
   $("delBtn").hidden = !session;
   $("editErr").textContent = "";
   for (const k of ["course", "date", "lecturer", "room", "note"]) form.elements[k].value = s[k] || "";
@@ -241,8 +241,8 @@ function syncRepeat() {
   if (!on) return;
   const dates = repeatDates();
   $("repeatPreview").textContent = !$("repeatUntil").value ? "Pick the last day of the series."
-    : !dates.length ? "No lessons in that range on the selected days."
-    : `${dates.length} lesson${dates.length > 1 ? "s" : ""}: ${ddmm(fromKey(dates[0]))} → ${ddmm(fromKey(dates.at(-1)))}/${dates.at(-1).slice(0, 4)}` +
+    : !dates.length ? "No sessions in that range on the selected days."
+    : `${dates.length} session${dates.length > 1 ? "s" : ""}: ${ddmm(fromKey(dates[0]))} → ${ddmm(fromKey(dates.at(-1)))}/${dates.at(-1).slice(0, 4)}` +
       (dates.length > MAX_SERIES ? ` (max ${MAX_SERIES})` : "");
 }
 
@@ -281,8 +281,8 @@ form.addEventListener("submit", e => {
   const dates = repeat ? repeatDates() : [];
   if (repeat) {
     if (!$("repeatUntil").value) { err.textContent = "Pick the last day of the series."; return; }
-    if (!dates.length) { err.textContent = "No lessons in that range on the selected days."; return; }
-    if (dates.length > MAX_SERIES) { err.textContent = `Too many lessons (${dates.length}); max ${MAX_SERIES}.`; return; }
+    if (!dates.length) { err.textContent = "No sessions in that range on the selected days."; return; }
+    if (dates.length > MAX_SERIES) { err.textContent = `Too many sessions (${dates.length}); max ${MAX_SERIES}.`; return; }
   }
   busy($("saveBtn"), async () => {
     try {
@@ -302,7 +302,7 @@ form.addEventListener("submit", e => {
         }
       } else if (repeat) {
         state.sessions.push(...await api.createSeries(dates.map(date => ({ ...f, date }))));
-        msg = `Added ${dates.length} lessons`;
+        msg = `Added ${dates.length} sessions`;
       } else {
         state.sessions.push(await api.createSession(f));
       }
@@ -317,7 +317,7 @@ $("delBtn").onclick = () => {
   const old = state.sessions.find(s => s.id === state.editingId);
   const following = old.series_id && form.elements.scope.value === "following";
   const n = following ? state.sessions.filter(s => s.series_id === old.series_id && s.date >= old.date).length : 1;
-  if (!confirm(following ? `Delete this and the following lessons of the series (${n})?` : "Delete this lesson?")) return;
+  if (!confirm(following ? `Delete this and the following sessions of the series (${n})?` : "Delete this session?")) return;
   busy($("delBtn"), async () => {
     try {
       if (following) {
@@ -327,7 +327,7 @@ $("delBtn").onclick = () => {
         await api.deleteSession(old.id);
         state.sessions = state.sessions.filter(s => s.id !== old.id);
       }
-      dlg.close(); render(); toast(n > 1 ? `Deleted ${n} lessons` : "Deleted");
+      dlg.close(); render(); toast(n > 1 ? `Deleted ${n} sessions` : "Deleted");
     } catch (ex) { $("editErr").textContent = "Could not delete: " + errMsg(ex); }
   });
 };
@@ -343,7 +343,7 @@ $("xlsFile").onchange = async e => {
   try {
     const XLSX = await import(SHEETJS_URL);
     const parsed = parseWorkbook(XLSX, await file.arrayBuffer());
-    if (!parsed.sessions.length) throw new Error("No lessons found in this file.");
+    if (!parsed.sessions.length) throw new Error("No sessions found in this file.");
     const plan = planMerge(state.sessions, parsed.sessions);
     await api.applyImport(plan);
     state.sessions = await api.loadSessions();
@@ -425,7 +425,7 @@ $("templateBtn").onclick = async () => {
     sheet["!cols"] = [11, 12, 15, 34, 22, 14, 16, 32].map(wch => ({ wch }));
     const help = XLSX.utils.aoa_to_sheet([
       ["How to fill in this template"],
-      ["• One row per lesson, below the header row (Weekday, Day, Hour, Course…). Don't rename or move the header."],
+      ["• One row per session (lesson or exam), below the header row (Weekday, Day, Hour, Course…). Don't rename or move the header."],
       ["• Day: dd-mm-yyyy, e.g. 12-10-2026.   Hour: HH:MM - HH:MM in 24-hour time, e.g. 14:30 - 16:30."],
       ["• Course is required. Weekday, Lecturer, Academic trail, Room and Notes are optional."],
       ["• Rows 1–3 (Academic year, Course of study, Year of study) fill in your profile; you can leave them out."],
