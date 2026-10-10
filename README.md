@@ -109,6 +109,16 @@ Ngày nghỉ lễ (vd. Natale) không tự bỏ qua — xóa riêng từng buổ
 
 > Cập nhật từ bản trước: chạy lại `supabase/schema.sql` trong SQL Editor (thêm cột `series_id`).
 
+## Import lịch thi & nhắc nhở cập nhật
+
+Nút **Import ▾** có 2 mục: **Lessons timetable** (file export lịch học) và **Exams** (file export lịch thi của Unimi, dạng `exams.xls`: cột `Date` kiểu `Wednesday 4 November 2026`, môn có hậu tố `(Esame)`).
+- Lịch thi **không tách** thành ô 2h, loại tự gán *Exam* (trên lưới có nhãn **EXAM**), hậu tố `(Esame)` bị bỏ và tên môn được **khớp với môn đã có** (vd. `Statistical TheoryMathematics` → `Statistical Theory and Mathematics`) để cùng tên, cùng màu.
+- Import lịch học và lịch thi **độc lập**: import lại cái này không xóa/sửa cái kia (lịch thi có `source_key` bắt đầu bằng `exam_`).
+- Chọn nhầm mục (vd. file lịch thi ở mục Lessons): app nhận ra và hỏi lại.
+- Sinh viên trường khác: trong Help có `lessons-template.xlsx` và `exams-template.xlsx`.
+
+**Nhắc nhở**: sau khi import, phía trên lưới hiện ngày import gần nhất và lời nhắc kiểm tra website trường mỗi tuần rồi import lại (ghi chú không mất). Bấm × để ẩn 7 ngày; quá 7 ngày chưa import thì nhắc chuyển màu cam. Ngày import lưu ở `profiles.last_import_lessons` / `last_import_exams`.
+
 ## Quy tắc import
 
 - Đọc sheet đầu tiên, tìm dòng tiêu đề có các cột `Day`, `Hour`, `Course` (các cột `Lecturer`, `Room`, `Notes` tùy chọn). Giờ dạng `14:30 - 16:30` (chấp nhận cả `14.30-16.30`).

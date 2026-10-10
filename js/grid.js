@@ -98,8 +98,10 @@ export function renderWeek(container, weekStart, sessions, colors, nDays = 5, no
       const style = `grid-column:${i + 2};grid-row:${r0} / span ${span};background:${c.bg};border-color:${c.border};` +
         (lanes > 1 ? `width:calc(${w}% - 6px);margin-left:calc(${w * lane}% + 3px);` : "");
       const tip = `${s.course}\n${s.start} – ${s.end}\n${s.lecturer}\n${s.room}${s.note ? "\n\n📝 " + s.note : ""}`;
-      html += `<button type="button" class="event${lanes > 1 ? " conflict" : ""}" data-id="${esc(s.id)}" style="${style}" title="${esc(tip)}">
+      const exam = /^exam$/i.test(s.type || "");
+      html += `<button type="button" class="event${lanes > 1 ? " conflict" : ""}${exam ? " exam" : ""}" data-id="${esc(s.id)}" style="${style}" title="${esc(tip)}">
         ${s.modified ? `<span class="badge" title="Edited">✎</span>` : ""}
+        ${exam ? `<span class="exam-tag">Exam</span>` : ""}
         <span class="course">${esc(s.course)}</span>
         <span class="info">${esc(s.start)} – ${esc(s.end)}${s.type ? " · " + esc(s.type) : ""}</span>
         ${s.room ? `<span class="info">📍 ${esc(s.room)}</span>` : ""}

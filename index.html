@@ -65,7 +65,13 @@
     </nav>
     <div class="actions-bar">
       <button class="primary" id="addBtn" title="Add a lesson, exam or other session">+ Add session</button>
-      <label class="btn" id="importLabel" for="xlsFile">Import Excel</label>
+      <div class="view-menu">
+        <button type="button" id="importBtn" aria-haspopup="true" aria-expanded="false">Import ▾</button>
+        <div class="popover left" id="importPop" role="menu" hidden>
+          <button type="button" class="menu-item" role="menuitem" data-import="lessons"><b>📚 Lessons timetable</b><small>Excel export of your course timetable</small></button>
+          <button type="button" class="menu-item" role="menuitem" data-import="exams"><b>📝 Exams</b><small>Excel export of your exam calendar</small></button>
+        </div>
+      </div>
       <input type="file" id="xlsFile" accept=".xls,.xlsx,.csv" hidden>
       <button id="helpBtn" title="How to use">? Help</button>
       <button id="feedbackBtn" title="Review, report a bug or request a feature">💬 Feedback</button>
@@ -74,6 +80,7 @@
       <button id="signOutBtn">Sign out</button>
     </div>
   </header>
+  <div id="reminder" class="reminder" role="status" hidden></div>
   <main id="main"></main>
   <footer class="site-footer">© 2026 Hung Cao · University Timetable — unofficial student project, not affiliated with Università degli Studi di Milano.</footer>
 </div>
@@ -149,26 +156,29 @@
         <li>Choose the timetable of <b>your course of study</b> (and year).</li>
         <li>Switch to the <b>Events List</b> view.</li>
         <li>Click <b>Export Excel</b> — you get an <code>.xls</code> file.</li>
-        <li>Here, click <b>Import Excel</b> and choose that file.</li>
+        <li>Here, click <b>Import ▾ → Lessons timetable</b> and choose that file.</li>
+        <li><b>Exams:</b> export your exam calendar from Orari the same way, then <b>Import ▾ → Exams</b>.</li>
       </ol>
     </section>
 
     <section data-guide-panel="other" hidden>
       <ol class="steps">
-        <li>Download the template: <button type="button" class="link" id="templateBtn">timetable-template.xlsx</button></li>
-        <li>Fill in <b>one row per session</b> (lesson or exam) under the header row:
-          <b>Day</b> as <code>dd-mm-yyyy</code>, <b>Hour</b> as <code>HH:MM - HH:MM</code> (24-hour), <b>Course</b>.
+        <li>Download a template:
+          <button type="button" class="link" data-template="lessons">lessons-template.xlsx</button> or
+          <button type="button" class="link" data-template="exams">exams-template.xlsx</button></li>
+        <li>Fill in <b>one row per lesson / exam</b> under the header row:
+          <b>Day</b> (or <b>Date</b>) as <code>dd-mm-yyyy</code>, <b>Hour</b> as <code>HH:MM - HH:MM</code> (24-hour), <b>Course</b>.
           Lecturer, Room and Notes are optional. Don't rename the header.</li>
         <li>Save the file (.xlsx, .xls or .csv).</li>
-        <li>Here, click <b>Import Excel</b> and choose that file.</li>
+        <li>Here, click <b>Import ▾</b> → <b>Lessons timetable</b> or <b>Exams</b> and choose that file.</li>
       </ol>
     </section>
 
     <div class="tips">
       <b>Good to know</b>
       <ul>
-        <li>4-hour (or 6-hour) blocks are split into 2-hour slots.</li>
-        <li>Importing a newer file again keeps your notes and edits.</li>
+        <li>Lessons of 4 (or 6) hours are split into 2-hour slots; exams are kept whole.</li>
+        <li><b>Timetables can change</b> — check your university website once a week and import again. Your notes and edits are kept.</li>
         <li>Exams or extra courses (e.g. a language class)? <b>+ Add session</b>; for a weekly class tick <b>Repeat weekly</b>.</li>
         <li>Open this guide again any time with <b>? Help</b>.</li>
       </ul>

@@ -15,6 +15,9 @@ create table if not exists public.profiles (
 );
 -- Set once the user has seen the how-to guide (shown automatically on first sign-in).
 alter table public.profiles add column if not exists guide_seen boolean not null default false;
+-- When the user last imported each file (drives the "timetables can change" reminder).
+alter table public.profiles add column if not exists last_import_lessons timestamptz;
+alter table public.profiles add column if not exists last_import_exams timestamptz;
 -- Optional: name of the university (for students outside UniMi).
 alter table public.profiles add column if not exists university text not null default '' check (char_length(university) <= 200);
 
