@@ -20,8 +20,5 @@ export function weeklyDates(from, until, weekdays) {
   return out;
 }
 
-// Week shown on open: the current week; on Saturday/Sunday the coming week.
-export function currentWeekStart(now = new Date()) {
-  const dow = (now.getDay() + 6) % 7;
-  return dow >= 5 ? addDays(mondayOf(now), 7) : mondayOf(now);
-}
+// Weeks run Monday → Sunday; "this week" is the one containing today (also on weekends).
+export const currentWeekStart = (now = new Date()) => mondayOf(now);

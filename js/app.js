@@ -117,9 +117,8 @@ async function enterApp(user) {
   }
   state.weekStart = currentWeekStart();
   $("userName").textContent = state.profile.full_name || user.email;
-  $("adminForm").hidden = true;
-  $("fbAdminTab").hidden = true;
-  api.isAdmin().then(yes => { $("adminForm").hidden = $("fbAdminTab").hidden = !yes; }).catch(() => {});
+  $("adminBtn").hidden = true;
+  api.isAdmin().then(yes => { $("adminBtn").hidden = !yes; }).catch(() => {});
   show("app");
   render();
   maybeShowGuide();
@@ -267,7 +266,8 @@ $("main").addEventListener("click", e => {
   }
 });
 $("addBtn").onclick = () => {
-  const now = new Date(), inWeek = mondayOf(now).getTime() === state.weekStart.getTime();
+  // Today if it is a weekday of the shown week, else that week's Monday (the grid shows Mon–Fri).
+  const now = new Date(), inWeek = mondayOf(now).getTime() === state.weekStart.getTime() && now.getDay() % 6 !== 0;
   openEditor(null, { date: toKey(inWeek ? now : state.weekStart), start: "09:30", end: "11:30" });
 };
 $("cancelBtn").onclick = () => dlg.close();
@@ -460,7 +460,6 @@ function setFbTab(tab) {
   });
   fbDlg.querySelectorAll("[data-fb-panel]").forEach(p => p.hidden = p.dataset.fbPanel !== tab);
   if (tab === "mine") loadMine();
-  if (tab === "admin") loadAll();
 }
 
 function setRating(n) {
@@ -574,16 +573,113 @@ $("fbAll").addEventListener("click", e => {
   });
 });
 
+// ---------- admin: users + feedback ----------
+const adminDlg = $("adminDlg");
+let users = [];
+
+const fmtDate = iso => iso ? new Date(iso).toLocaleDateString("en-GB") : "never";
+const daysAgo = iso => iso ? (Date.now() - new Date(iso)) / 86400000 : Infinity;
+
+function setAdminTab(tab) {
+  adminDlg.querySelectorAll("[data-admin-tab]").forEach(b => {
+    b.classList.toggle("active", b.dataset.adminTab === tab);
+    b.setAttribute("aria-selected", String(b.dataset.adminTab === tab));
+  });
+  adminDlg.querySelectorAll("[data-admin-panel]").forEach(p => p.hidden = p.dataset.adminPanel !== tab);
+  if (tab === "users") loadUsers();
+  if (tab === "feedback") loadAll();
+}
+
+async function loadUsers() {
+  $("userList").innerHTML = `<p class="muted small">Loading…</p>`;
+  try { users = await api.adminListUsers(); renderUsers(); }
+  catch (ex) { $("userList").innerHTML = `<p class="err">Could not load users: ${esc(errMsg(ex))}</p>`; }
+}
+
+function renderUsers() {
+  const q = $("userSearch").value.trim().toLowerCase();
+  const list = users.filter(u => !q || [u.email, u.full_name, u.university, u.course_of_study].some(v => (v || "").toLowerCase().includes(q)));
+  $("userSummary").textContent = `${users.length} users · ${users.filter(u => daysAgo(u.last_sign_in_at) <= 7).length} active in the last 7 days · ` +
+    `${users.filter(u => u.is_admin).length} admin · ${users.filter(u => u.banned).length} disabled`;
+  $("userList").innerHTML = list.length ? list.map(u => {
+    const me = u.id === state.user.id;
+    const info = [u.full_name, u.university, u.course_of_study].filter(Boolean).map(esc).join(" · ");
+    return `<div class="fb-item" data-user-id="${esc(u.id)}">
+      <div class="fb-head"><b style="color:var(--text)">${esc(u.email)}</b>
+        ${me ? `<span class="badge-st new">You</span>` : ""}
+        ${u.is_admin ? `<span class="badge-st in_progress">Admin</span>` : ""}
+        ${u.banned ? `<span class="badge-st wont_fix">Disabled</span>` : ""}</div>
+      ${info ? `<div>${info}</div>` : ""}
+      <div class="small muted">Joined ${fmtDate(u.created_at)} · last sign-in ${fmtDate(u.last_sign_in_at)} · ${u.sessions} sessions · ${u.feedback} feedback</div>
+      <div class="user-actions">
+        <button type="button" data-act="reset">Reset password</button>
+        ${me ? "" : `
+        <button type="button" data-act="admin">${u.is_admin ? "Remove admin" : "Make admin"}</button>
+        <button type="button" data-act="ban">${u.banned ? "Enable" : "Disable"}</button>
+        <button type="button" class="danger" data-act="delete">Delete</button>`}
+      </div>
+    </div>`;
+  }).join("") : `<p class="muted small">No users found.</p>`;
+}
+
+function tempPassword() {
+  const chars = "abcdefghjkmnpqrstuvwxyz23456789";
+  return Array.from(crypto.getRandomValues(new Uint32Array(10)), n => chars[n % chars.length]).join("");
+}
+
+$("userList").addEventListener("click", e => {
+  const btn = e.target.closest("[data-act]");
+  if (!btn) return;
+  const u = users.find(x => x.id === btn.closest("[data-user-id]").dataset.userId);
+  const run = (fn, msg) => busy(btn, async () => {
+    try { await fn(); toast(msg); await loadUsers(); }
+    catch (ex) { toast(errMsg(ex), true); }
+  });
+  switch (btn.dataset.act) {
+    case "reset": {
+      const pw = prompt(`Temporary password for ${u.email} (min. ${MIN_PASSWORD} characters):`, tempPassword());
+      if (pw == null) return;
+      if (pw.length < MIN_PASSWORD) return toast(`At least ${MIN_PASSWORD} characters.`, true);
+      busy(btn, async () => {
+        try {
+          await api.adminResetPassword(u.email, pw);
+          alert(`Password of ${u.email} is now:\n\n${pw}\n\nSend it to the user and ask them to change it in Profile.`);
+        } catch (ex) { toast(errMsg(ex), true); }
+      });
+      break;
+    }
+    case "admin":
+      if (confirm(u.is_admin ? `Remove admin rights from ${u.email}?` : `Give admin rights to ${u.email}? They will see all users and feedback.`))
+        run(() => api.adminSetAdmin(u.id, !u.is_admin), u.is_admin ? "Admin rights removed" : "Admin rights given");
+      break;
+    case "ban":
+      if (confirm(u.banned ? `Enable ${u.email} again?` : `Disable ${u.email}? They will not be able to sign in.`))
+        run(() => api.adminSetBanned(u.id, !u.banned), u.banned ? "Account enabled" : "Account disabled");
+      break;
+    case "delete":
+      if (prompt(`This permanently deletes ${u.email} with all their sessions and feedback.\nType the email to confirm:`)?.trim().toLowerCase() === u.email.toLowerCase())
+        run(() => api.adminDeleteUser(u.id), "User deleted");
+      break;
+  }
+});
+
+adminDlg.querySelectorAll("[data-admin-tab]").forEach(b => b.onclick = () => setAdminTab(b.dataset.adminTab));
+$("userSearch").addEventListener("input", renderUsers);
+$("adminBtn").onclick = () => { adminDlg.showModal(); setAdminTab("users"); };
+$("adminClose").onclick = () => adminDlg.close();
+
 // ---------- profile ----------
 const pDlg = $("profileDlg"), pForm = $("profileForm");
-const PFIELDS = ["full_name", "course_of_study", "academic_year", "year_of_study"];
+const PFIELDS = ["full_name", "university", "course_of_study", "academic_year", "year_of_study"];
+// UniMi addresses don't need the (optional) university field.
+const isUnimiEmail = email => /@(studenti\.)?unimi\.it$/i.test(email || "");
 
 $("profileBtn").onclick = () => {
   pForm.elements.email.value = state.profile?.email || state.user.email;
   for (const k of PFIELDS) pForm.elements[k].value = state.profile?.[k] || "";
-  $("profileErr").textContent = $("passwordErr").textContent = $("adminErr").textContent = "";
+  $("universityWrap").hidden = isUnimiEmail(pForm.elements.email.value) && !state.profile?.university;
+  $("profileErr").textContent = $("passwordErr").textContent = "";
   $("passwordForm").reset();
-  $("adminForm").reset();
   pDlg.showModal();
 };
 $("profileCancel").onclick = () => pDlg.close();
@@ -605,21 +701,6 @@ $("passwordForm").addEventListener("submit", e => {
   });
 });
 
-$("adminForm").addEventListener("submit", e => {
-  e.preventDefault();
-  const f = e.target.elements, err = $("adminErr");
-  const email = f.email.value.trim().toLowerCase();
-  if (f.pw.value.length < MIN_PASSWORD) { err.textContent = `At least ${MIN_PASSWORD} characters.`; return; }
-  if (!confirm(`Reset the password of ${email}?`)) return;
-  busy($("adminSave"), async () => {
-    try {
-      await api.adminResetPassword(email, f.pw.value);
-      err.textContent = "";
-      toast(`Password of ${email} reset`);
-      f.pw.value = "";
-    } catch (ex) { err.textContent = errMsg(ex); }
-  });
-});
 pForm.addEventListener("submit", e => {
   e.preventDefault();
   const p = Object.fromEntries(PFIELDS.map(k => [k, pForm.elements[k].value.trim()]));

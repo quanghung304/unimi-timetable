@@ -15,6 +15,8 @@ create table if not exists public.profiles (
 );
 -- Set once the user has seen the how-to guide (shown automatically on first sign-in).
 alter table public.profiles add column if not exists guide_seen boolean not null default false;
+-- Optional: name of the university (for students outside UniMi).
+alter table public.profiles add column if not exists university text not null default '' check (char_length(university) <= 200);
 
 -- ---------------------------------------------------------------------------
 -- Sessions: one row per lesson slot (a 4h block from the export is stored as two 2h rows).
@@ -224,3 +226,67 @@ create trigger feedback_before_insert before insert on public.feedback
 drop trigger if exists feedback_touch on public.feedback;
 create trigger feedback_touch before update on public.feedback
   for each row execute function public.touch_updated_at();
+
+-- ---------------------------------------------------------------------------
+-- Admin: user management (list, admin role, disable, delete).
+-- Every function checks public.is_admin(); none of them can target the caller.
+-- ---------------------------------------------------------------------------
+create or replace function public.admin_list_users()
+returns table (
+  id uuid, email text, full_name text, university text, course_of_study text,
+  created_at timestamptz, last_sign_in_at timestamptz,
+  banned boolean, is_admin boolean, sessions bigint, feedback bigint
+)
+language sql stable security definer set search_path = '' as $$
+  select u.id, u.email::text, coalesce(p.full_name, ''), coalesce(p.university, ''), coalesce(p.course_of_study, ''),
+         u.created_at, u.last_sign_in_at,
+         coalesce(u.banned_until > now(), false),
+         exists (select 1 from public.admins a where a.user_id = u.id),
+         (select count(*) from public.sessions s where s.user_id = u.id),
+         (select count(*) from public.feedback f where f.user_id = u.id)
+    from auth.users u
+    left join public.profiles p on p.id = u.id
+   where public.is_admin()
+   order by u.created_at desc;
+$$;
+
+create or replace function public.admin_set_admin(target uuid, make boolean)
+returns void language plpgsql security definer set search_path = '' as $$
+begin
+  if not public.is_admin() then raise exception 'Not allowed'; end if;
+  if target = auth.uid() then raise exception 'You cannot change your own admin role'; end if;
+  if make then
+    insert into public.admins (user_id) values (target) on conflict do nothing;
+  else
+    delete from public.admins where user_id = target;
+  end if;
+end $$;
+
+-- Disabled users cannot sign in (Supabase Auth refuses users with banned_until in the future).
+create or replace function public.admin_set_banned(target uuid, banned boolean)
+returns void language plpgsql security definer set search_path = '' as $$
+begin
+  if not public.is_admin() then raise exception 'Not allowed'; end if;
+  if target = auth.uid() then raise exception 'You cannot disable your own account'; end if;
+  update auth.users
+     set banned_until = case when banned then now() + interval '100 years' else null end
+   where id = target;
+end $$;
+
+-- Deletes the account and (via cascades) its profile, sessions, feedback and admin role.
+create or replace function public.admin_delete_user(target uuid)
+returns void language plpgsql security definer set search_path = '' as $$
+begin
+  if not public.is_admin() then raise exception 'Not allowed'; end if;
+  if target = auth.uid() then raise exception 'Use "Delete my account" in Profile to delete yourself'; end if;
+  delete from auth.users where id = target;
+end $$;
+
+revoke all on function public.admin_list_users() from public, anon;
+revoke all on function public.admin_set_admin(uuid, boolean) from public, anon;
+revoke all on function public.admin_set_banned(uuid, boolean) from public, anon;
+revoke all on function public.admin_delete_user(uuid) from public, anon;
+grant execute on function public.admin_list_users() to authenticated;
+grant execute on function public.admin_set_admin(uuid, boolean) to authenticated;
+grant execute on function public.admin_set_banned(uuid, boolean) to authenticated;
+grant execute on function public.admin_delete_user(uuid) to authenticated;

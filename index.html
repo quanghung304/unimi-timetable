@@ -60,6 +60,7 @@
       <input type="file" id="xlsFile" accept=".xls,.xlsx,.csv" hidden>
       <button id="helpBtn" title="How to use">? Help</button>
       <button id="feedbackBtn" title="Review, report a bug or request a feature">💬 Feedback</button>
+      <button id="adminBtn" title="Admin: users and feedback" hidden>🛠 Admin</button>
       <button id="profileBtn" title="Profile"><span id="userName"></span></button>
       <button id="signOutBtn">Sign out</button>
     </div>
@@ -174,7 +175,6 @@
     <div class="tabs" role="tablist">
       <button type="button" role="tab" class="active" data-fb-tab="send">Send</button>
       <button type="button" role="tab" data-fb-tab="mine">My feedback</button>
-      <button type="button" role="tab" data-fb-tab="admin" id="fbAdminTab" hidden>All feedback</button>
     </div>
 
     <form id="fbForm" data-fb-panel="send" class="fb-form">
@@ -207,8 +207,25 @@
       <div id="fbMine" class="fb-list"></div>
       <div class="dlg-actions"><button type="button" class="fb-close">Close</button></div>
     </section>
+  </div>
+</dialog>
 
-    <section data-fb-panel="admin" hidden>
+<!-- ======================= Admin ======================= -->
+<dialog id="adminDlg" class="guide admin">
+  <div class="guide-body">
+    <h3>Admin</h3>
+    <div class="tabs" role="tablist">
+      <button type="button" role="tab" class="active" data-admin-tab="users">Users</button>
+      <button type="button" role="tab" data-admin-tab="feedback">Feedback</button>
+    </div>
+
+    <section data-admin-panel="users">
+      <input type="search" id="userSearch" placeholder="Search by email, name or university…" aria-label="Search users" autofocus>
+      <p class="small muted" id="userSummary"></p>
+      <div id="userList" class="fb-list"></div>
+    </section>
+
+    <section data-admin-panel="feedback" hidden>
       <div class="row2 eq">
         <label>Type
           <select id="fbFilterKind"><option value="">All</option><option value="review">Review</option><option value="bug">Bug</option><option value="feature">Feature</option></select>
@@ -219,8 +236,9 @@
       </div>
       <p class="small muted" id="fbAdminSummary"></p>
       <div id="fbAll" class="fb-list"></div>
-      <div class="dlg-actions"><button type="button" class="fb-close">Close</button></div>
-    </section>
+          </section>
+
+    <div class="dlg-actions"><button type="button" id="adminClose">Close</button></div>
   </div>
 </dialog>
 
@@ -230,6 +248,7 @@
     <h3>Profile</h3>
     <label>Email <input name="email" readonly></label>
     <label>Full name <input name="full_name" maxlength="120" autocomplete="name"></label>
+    <label id="universityWrap">University <span class="muted">(optional)</span> <input name="university" maxlength="200" placeholder="e.g. Politecnico di Milano"></label>
     <label>Course of study <input name="course_of_study" maxlength="300" placeholder="e.g. Data Science for Economics and Health"></label>
     <div class="row2">
       <label>Academic year <input name="academic_year" maxlength="20" placeholder="2026/2027"></label>
@@ -251,18 +270,6 @@
       </div>
       <div class="err" id="passwordErr"></div>
       <button class="primary" id="passwordSave">Update password</button>
-    </details>
-  </form>
-  <form id="adminForm" class="sub-form" hidden>
-    <details>
-      <summary>Admin · reset a user's password</summary>
-      <p class="muted small">Sets a temporary password. Tell the student, and ask them to change it under Profile.</p>
-      <div class="row2 eq">
-        <label>User email <input type="email" name="email" placeholder="student@university.it" required></label>
-        <label>Temporary password <input type="text" name="pw" minlength="6" autocomplete="off" required></label>
-      </div>
-      <div class="err" id="adminErr"></div>
-      <button class="primary" id="adminSave">Reset password</button>
     </details>
   </form>
   <form class="sub-form">

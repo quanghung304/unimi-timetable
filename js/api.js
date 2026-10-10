@@ -93,3 +93,9 @@ export const loadMyFeedback = userId =>
 export const loadAllFeedback = () =>   // admin only (RLS)
   sb.from("feedback").select(FB_COLS).order("created_at", { ascending: false }).limit(500).then(check);
 export const updateFeedback = (id, patch) => sb.from("feedback").update(patch).eq("id", id).then(check);
+
+// ---------- admin: users ----------
+export const adminListUsers = () => sb.rpc("admin_list_users").then(check);
+export const adminSetAdmin = (id, make) => sb.rpc("admin_set_admin", { target: id, make }).then(check);
+export const adminSetBanned = (id, banned) => sb.rpc("admin_set_banned", { target: id, banned }).then(check);
+export const adminDeleteUser = id => sb.rpc("admin_delete_user", { target: id }).then(check);

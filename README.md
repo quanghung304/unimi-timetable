@@ -33,10 +33,10 @@ timetable-app/
    insert into public.admins (user_id)
    select id from auth.users where email = 'hung.cao@studenti.unimi.it';
    ```
-   Đăng nhập lại → *Profile* sẽ có mục **Admin · reset a user's password**.
+   Đăng nhập lại → thanh công cụ có nút **🛠 Admin**.
    Làm bước này **trước khi** chia sẻ link, để không ai đăng ký trước bằng email của bạn.
 
-**Quên mật khẩu**: sinh viên liên hệ admin → admin vào *Profile → Admin* nhập email + mật khẩu tạm → báo cho sinh viên → sinh viên đăng nhập và đổi ở *Profile → Change password*.
+**Quên mật khẩu**: sinh viên liên hệ admin → admin vào *🛠 Admin → Users* → **Reset password** ở dòng của sinh viên (app gợi ý sẵn mật khẩu tạm) → báo cho sinh viên → sinh viên đăng nhập và đổi ở *Profile → Change password*.
 
 **Admin tự quên mật khẩu**: đăng nhập <https://supabase.com/dashboard> → project → **SQL Editor**, chạy (thay mật khẩu tạm):
 ```sql
@@ -82,10 +82,18 @@ Hộp thoại **How to use** tự mở ở lần đăng nhập đầu tiên củ
 
 Import nhận `.xls`, `.xlsx`, `.csv`; dòng tiêu đề chỉ cần có các cột **Day**, **Hour**, **Course**.
 
+## Admin
+
+Nút **🛠 Admin** (chỉ hiện với admin) có 2 tab:
+- **Users**: tìm theo email/tên/trường; mỗi user hiện ngày tham gia, lần đăng nhập cuối, số buổi, số feedback. Thao tác: **Reset password**, **Make/Remove admin**, **Disable/Enable** (user bị khóa không đăng nhập được), **Delete** (xóa tài khoản + toàn bộ dữ liệu; phải gõ lại email để xác nhận). Không thao tác được lên chính mình (trừ reset mật khẩu).
+- **Feedback**: xem mục Feedback bên dưới.
+
+Profile có thêm ô **University** (tùy chọn) cho sinh viên ngoài Unimi; ô này ẩn với email `@studenti.unimi.it` / `@unimi.it`.
+
 ## Feedback
 
 Nút **💬 Feedback**: người dùng gửi **đánh giá** (1–5 sao), **báo lỗi** (tùy chọn kèm thông tin trình duyệt/màn hình) hoặc **đề xuất tính năng**; tab *My feedback* hiện trạng thái và câu trả lời của admin.
-Admin có thêm tab **All feedback**: lọc theo loại/trạng thái, xem điểm trung bình, đổi trạng thái (New / In progress / Done / Won't fix) và trả lời.
+Admin xem tất cả ở *🛠 Admin → Feedback*: lọc theo loại/trạng thái, xem điểm trung bình, đổi trạng thái (New / In progress / Done / Won't fix) và trả lời.
 Dữ liệu nằm ở bảng `public.feedback` (xem được cả trong Supabase → Table Editor). Mỗi người tối đa 20 tin / 24 giờ.
 
 ## Lịch lặp lại (cả kỳ)
