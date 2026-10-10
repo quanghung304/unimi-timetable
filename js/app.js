@@ -1,7 +1,7 @@
 import { remember } from "./supabase.js";
 import * as api from "./api.js";
 import { parseWorkbook, planMerge } from "./importer.js";
-import { renderWeek, drawNowLine, courseColors } from "./grid.js";
+import { renderWeek, drawNowLine, courseColors, esc } from "./grid.js";
 import { pad, toKey, fromKey, addDays, toMin, fmtMin, ddmm, mondayOf, currentWeekStart, weeklyDates } from "./dates.js";
 
 const SHEETJS_URL = "https://cdn.sheetjs.com/xlsx-0.20.3/package/xlsx.mjs";
@@ -118,7 +118,8 @@ async function enterApp(user) {
   state.weekStart = currentWeekStart();
   $("userName").textContent = state.profile.full_name || user.email;
   $("adminForm").hidden = true;
-  api.isAdmin().then(yes => { $("adminForm").hidden = !yes; }).catch(() => {});
+  $("fbAdminTab").hidden = true;
+  api.isAdmin().then(yes => { $("adminForm").hidden = $("fbAdminTab").hidden = !yes; }).catch(() => {});
   show("app");
   render();
   maybeShowGuide();
@@ -437,6 +438,141 @@ $("templateBtn").onclick = async () => {
     XLSX.writeFile(wb, "timetable-template.xlsx");
   } catch (ex) { toast("Could not create the template: " + errMsg(ex), true); }
 };
+
+// ---------- feedback ----------
+const fbDlg = $("feedbackDlg"), fbForm = $("fbForm");
+const FB_KIND = { review: "⭐ Review", bug: "🐞 Bug", feature: "💡 Feature" };
+const FB_STATUS = { new: "New", in_progress: "In progress", done: "Done", wont_fix: "Won't fix" };
+const FB_PLACEHOLDER = {
+  review: ["Your review", "What do you like? What could be better?"],
+  bug: ["What went wrong?", "What did you do, what did you expect, and what happened instead?"],
+  feature: ["Your idea", "Which feature or improvement would help you?"],
+};
+let fbRating = 0, fbAll = [];
+
+const fmtDateTime = iso => new Date(iso).toLocaleString("en-GB", { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" });
+const stars = n => n ? "★".repeat(n) + "☆".repeat(5 - n) : "";
+
+function setFbTab(tab) {
+  fbDlg.querySelectorAll("[data-fb-tab]").forEach(b => {
+    b.classList.toggle("active", b.dataset.fbTab === tab);
+    b.setAttribute("aria-selected", String(b.dataset.fbTab === tab));
+  });
+  fbDlg.querySelectorAll("[data-fb-panel]").forEach(p => p.hidden = p.dataset.fbPanel !== tab);
+  if (tab === "mine") loadMine();
+  if (tab === "admin") loadAll();
+}
+
+function setRating(n) {
+  fbRating = n;
+  $("fbRating").querySelectorAll("[data-star]").forEach(b => {
+    b.classList.toggle("on", +b.dataset.star <= n);
+    b.setAttribute("aria-pressed", String(+b.dataset.star === n));
+  });
+}
+
+function syncKind() {
+  const kind = fbForm.elements.kind.value;
+  $("fbRating").hidden = kind !== "review";
+  $("fbContextWrap").hidden = kind !== "bug";
+  const [label, ph] = FB_PLACEHOLDER[kind];
+  $("fbMsgLabel").textContent = label;
+  fbForm.elements.message.placeholder = ph;
+}
+
+function openFeedback() {
+  $("fbErr").textContent = "";
+  syncKind();
+  setFbTab("send");
+  fbDlg.showModal();
+}
+
+function itemHtml(f, admin) {
+  const head = `<div class="fb-head"><b>${FB_KIND[f.kind]}</b>
+    ${f.rating ? `<span style="color:#f59e0b">${stars(f.rating)}</span>` : ""}
+    <span class="badge-st ${f.status}">${FB_STATUS[f.status]}</span>
+    <span>${fmtDateTime(f.created_at)}</span>${admin ? ` · <span>${esc(f.email)}</span>` : ""}</div>
+    <div class="fb-msg">${esc(f.message)}</div>`;
+  if (!admin)
+    return `<div class="fb-item">${head}${f.admin_reply ? `<div class="fb-reply"><b>Reply:</b> ${esc(f.admin_reply)}</div>` : ""}</div>`;
+  const ctx = Object.keys(f.context || {}).length ? `<details class="small muted"><summary>Technical info</summary><pre class="fb-msg">${esc(JSON.stringify(f.context, null, 1))}</pre></details>` : "";
+  return `<div class="fb-item" data-fb-id="${esc(f.id)}">${head}${ctx}
+    <div class="fb-admin">
+      <select data-fb-status>${Object.entries(FB_STATUS).map(([v, t]) => `<option value="${v}"${v === f.status ? " selected" : ""}>${t}</option>`).join("")}</select>
+      <textarea data-fb-reply maxlength="4000" placeholder="Reply to the user (optional)">${esc(f.admin_reply)}</textarea>
+      <button type="button" class="primary" data-fb-save>Save</button>
+    </div></div>`;
+}
+
+async function loadMine() {
+  const box = $("fbMine");
+  box.innerHTML = `<p class="muted small">Loading…</p>`;
+  try {
+    const list = await api.loadMyFeedback(state.user.id);
+    box.innerHTML = list.length ? list.map(f => itemHtml(f, false)).join("") : `<p class="muted small">You haven't sent any feedback yet.</p>`;
+  } catch (ex) { box.innerHTML = `<p class="err">Could not load: ${esc(errMsg(ex))}</p>`; }
+}
+
+async function loadAll() {
+  $("fbAll").innerHTML = `<p class="muted small">Loading…</p>`;
+  try { fbAll = await api.loadAllFeedback(); renderAll(); }
+  catch (ex) { $("fbAll").innerHTML = `<p class="err">Could not load: ${esc(errMsg(ex))}</p>`; }
+}
+
+function renderAll() {
+  const k = $("fbFilterKind").value, st = $("fbFilterStatus").value;
+  const list = fbAll.filter(f => (!k || f.kind === k) && (!st || f.status === st));
+  const reviews = fbAll.filter(f => f.rating);
+  const avg = reviews.length ? (reviews.reduce((a, f) => a + f.rating, 0) / reviews.length).toFixed(1) : "–";
+  $("fbAdminSummary").textContent = `${fbAll.length} total · ${fbAll.filter(f => f.status === "new").length} new · average rating ${avg} (${reviews.length} reviews)`;
+  $("fbAll").innerHTML = list.length ? list.map(f => itemHtml(f, true)).join("") : `<p class="muted small">Nothing here.</p>`;
+}
+
+fbDlg.querySelectorAll("[data-fb-tab]").forEach(b => b.onclick = () => setFbTab(b.dataset.fbTab));
+fbDlg.querySelectorAll(".fb-close").forEach(b => b.onclick = () => fbDlg.close());
+$("feedbackBtn").onclick = openFeedback;
+fbForm.querySelectorAll("input[name=kind]").forEach(r => r.onchange = syncKind);
+$("fbRating").querySelectorAll("[data-star]").forEach(b => b.onclick = () => setRating(+b.dataset.star));
+$("fbFilterKind").onchange = $("fbFilterStatus").onchange = renderAll;
+
+fbForm.addEventListener("submit", e => {
+  e.preventDefault();
+  const kind = fbForm.elements.kind.value, message = fbForm.elements.message.value.trim(), err = $("fbErr");
+  err.textContent = "";
+  if (kind === "review" && !fbRating) { err.textContent = "Please pick a rating (1–5 stars)."; return; }
+  if (!message) { err.textContent = "Please write a message."; return; }
+  const context = kind === "bug" && fbForm.elements.withContext.checked ? {
+    userAgent: navigator.userAgent, language: navigator.language,
+    screen: `${screen.width}x${screen.height}`, viewport: `${innerWidth}x${innerHeight}`,
+    url: location.href, week: toKey(state.weekStart), lessons: state.sessions.length,
+  } : {};
+  busy($("fbSend"), async () => {
+    try {
+      await api.submitFeedback({ kind, message, rating: kind === "review" ? fbRating : null, context });
+      fbForm.reset();
+      setRating(0);
+      syncKind();
+      fbDlg.close();
+      toast("Thank you for your feedback!");
+    } catch (ex) { err.textContent = "Could not send: " + errMsg(ex); }
+  });
+});
+
+// Admin: save status / reply of one item.
+$("fbAll").addEventListener("click", e => {
+  const btn = e.target.closest("[data-fb-save]");
+  if (!btn) return;
+  const item = btn.closest("[data-fb-id]"), id = item.dataset.fbId;
+  const patch = { status: item.querySelector("[data-fb-status]").value, admin_reply: item.querySelector("[data-fb-reply]").value.trim() };
+  busy(btn, async () => {
+    try {
+      await api.updateFeedback(id, patch);
+      Object.assign(fbAll.find(f => f.id === id), patch);
+      renderAll();
+      toast("Saved");
+    } catch (ex) { toast("Could not save: " + errMsg(ex), true); }
+  });
+});
 
 // ---------- profile ----------
 const pDlg = $("profileDlg"), pForm = $("profileForm");

@@ -84,3 +84,12 @@ export async function applyImport({ inserts, updates, deletes }) {
   for (const c of chunks(deletes, 200))
     check(await sb.from("sessions").delete().in("id", c));
 }
+
+// ---------- feedback ----------
+const FB_COLS = "id,email,kind,rating,message,context,status,admin_reply,created_at,updated_at";
+export const submitFeedback = f => sb.from("feedback").insert(f).then(check);
+export const loadMyFeedback = userId =>
+  sb.from("feedback").select(FB_COLS).eq("user_id", userId).order("created_at", { ascending: false }).limit(100).then(check);
+export const loadAllFeedback = () =>   // admin only (RLS)
+  sb.from("feedback").select(FB_COLS).order("created_at", { ascending: false }).limit(500).then(check);
+export const updateFeedback = (id, patch) => sb.from("feedback").update(patch).eq("id", id).then(check);

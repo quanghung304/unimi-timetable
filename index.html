@@ -59,6 +59,7 @@
       <label class="btn" id="importLabel" for="xlsFile">Import Excel</label>
       <input type="file" id="xlsFile" accept=".xls,.xlsx,.csv" hidden>
       <button id="helpBtn" title="How to use">? Help</button>
+      <button id="feedbackBtn" title="Review, report a bug or request a feature">💬 Feedback</button>
       <button id="profileBtn" title="Profile"><span id="userName"></span></button>
       <button id="signOutBtn">Sign out</button>
     </div>
@@ -163,6 +164,63 @@
     <div class="dlg-actions">
       <button type="button" class="primary" id="guideClose" autofocus>Got it</button>
     </div>
+  </div>
+</dialog>
+
+<!-- ======================= Feedback ======================= -->
+<dialog id="feedbackDlg" class="guide">
+  <div class="guide-body">
+    <h3>Feedback</h3>
+    <div class="tabs" role="tablist">
+      <button type="button" role="tab" class="active" data-fb-tab="send">Send</button>
+      <button type="button" role="tab" data-fb-tab="mine">My feedback</button>
+      <button type="button" role="tab" data-fb-tab="admin" id="fbAdminTab" hidden>All feedback</button>
+    </div>
+
+    <form id="fbForm" data-fb-panel="send" class="fb-form">
+      <div class="weekdays" role="radiogroup" aria-label="Type">
+        <label class="day-chip"><input type="radio" name="kind" value="review" checked> ⭐ Review</label>
+        <label class="day-chip"><input type="radio" name="kind" value="bug"> 🐞 Bug report</label>
+        <label class="day-chip"><input type="radio" name="kind" value="feature"> 💡 Feature request</label>
+      </div>
+      <div id="fbRating" class="stars" role="radiogroup" aria-label="Rating">
+        <span class="small muted">Your rating:</span>
+        <button type="button" data-star="1" aria-label="1 star">★</button>
+        <button type="button" data-star="2" aria-label="2 stars">★</button>
+        <button type="button" data-star="3" aria-label="3 stars">★</button>
+        <button type="button" data-star="4" aria-label="4 stars">★</button>
+        <button type="button" data-star="5" aria-label="5 stars">★</button>
+      </div>
+      <label><span id="fbMsgLabel">Your review</span>
+        <textarea name="message" maxlength="4000" required autofocus></textarea>
+      </label>
+      <label class="check" id="fbContextWrap" hidden><input type="checkbox" name="withContext" checked>
+        Include technical info (browser, screen size) to help fix the bug</label>
+      <div class="err" id="fbErr"></div>
+      <div class="dlg-actions">
+        <button type="button" class="fb-close">Close</button>
+        <button class="primary" id="fbSend">Send</button>
+      </div>
+    </form>
+
+    <section data-fb-panel="mine" hidden>
+      <div id="fbMine" class="fb-list"></div>
+      <div class="dlg-actions"><button type="button" class="fb-close">Close</button></div>
+    </section>
+
+    <section data-fb-panel="admin" hidden>
+      <div class="row2 eq">
+        <label>Type
+          <select id="fbFilterKind"><option value="">All</option><option value="review">Review</option><option value="bug">Bug</option><option value="feature">Feature</option></select>
+        </label>
+        <label>Status
+          <select id="fbFilterStatus"><option value="">All</option><option value="new">New</option><option value="in_progress">In progress</option><option value="done">Done</option><option value="wont_fix">Won't fix</option></select>
+        </label>
+      </div>
+      <p class="small muted" id="fbAdminSummary"></p>
+      <div id="fbAll" class="fb-list"></div>
+      <div class="dlg-actions"><button type="button" class="fb-close">Close</button></div>
+    </section>
   </div>
 </dialog>
 

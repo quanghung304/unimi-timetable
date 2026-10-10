@@ -82,6 +82,12 @@ Hộp thoại **How to use** tự mở ở lần đăng nhập đầu tiên củ
 
 Import nhận `.xls`, `.xlsx`, `.csv`; dòng tiêu đề chỉ cần có các cột **Day**, **Hour**, **Course**.
 
+## Feedback
+
+Nút **💬 Feedback**: người dùng gửi **đánh giá** (1–5 sao), **báo lỗi** (tùy chọn kèm thông tin trình duyệt/màn hình) hoặc **đề xuất tính năng**; tab *My feedback* hiện trạng thái và câu trả lời của admin.
+Admin có thêm tab **All feedback**: lọc theo loại/trạng thái, xem điểm trung bình, đổi trạng thái (New / In progress / Done / Won't fix) và trả lời.
+Dữ liệu nằm ở bảng `public.feedback` (xem được cả trong Supabase → Table Editor). Mỗi người tối đa 20 tin / 24 giờ.
+
 ## Lịch lặp lại (cả kỳ)
 
 *+ Add lesson* → tick **Repeat weekly** → chọn thứ (có thể nhiều thứ), ngày bắt đầu và **Until** (ngày cuối). App tạo từng buổi riêng (tối đa 200) và gắn chung một `series_id`.

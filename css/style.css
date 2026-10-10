@@ -122,6 +122,26 @@ dialog.guide { width: min(580px, calc(100vw - 32px)); }
 .tips { background: #f8fafc; border: 1px solid var(--line); border-radius: 8px; padding: 10px 14px; font-size: 13px; }
 .tips ul { margin: 6px 0 0; padding-left: 18px; display: grid; gap: 3px; }
 
+/* ---------- feedback ---------- */
+.fb-form { display: grid; gap: 10px; }
+.stars { display: flex; align-items: center; gap: 2px; }
+.stars button { border: none; background: none; padding: 0 2px; font-size: 24px; line-height: 1; color: #d1d5db; }
+.stars button.on { color: #f59e0b; }
+.stars button:hover { background: none; }
+.fb-list { display: grid; gap: 8px; max-height: 55vh; overflow: auto; }
+.fb-item { border: 1px solid var(--line); border-radius: 8px; padding: 10px 12px; display: grid; gap: 6px; font-size: 13px; }
+.fb-head { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; color: var(--muted); font-size: 12px; }
+.fb-msg { white-space: pre-wrap; }
+.fb-reply { background: #eef4ff; border-radius: 6px; padding: 6px 8px; white-space: pre-wrap; }
+.badge-st { border-radius: 999px; padding: 1px 8px; font-size: 11px; font-weight: 600; background: #f1f5f9; color: #475569; }
+.badge-st.new { background: #dbeafe; color: #1d4ed8; }
+.badge-st.in_progress { background: #fef3c7; color: #92400e; }
+.badge-st.done { background: #dcfce7; color: #166534; }
+.badge-st.wont_fix { background: #f3f4f6; color: #6b7280; }
+.fb-admin { display: grid; grid-template-columns: 160px 1fr auto; gap: 6px; align-items: start; }
+.fb-admin textarea { min-height: 38px; }
+@media (max-width: 640px) { .fb-admin { grid-template-columns: 1fr; } }
+
 #toast { position: fixed; bottom: 16px; left: 50%; transform: translateX(-50%); background: #111827; color: #fff; padding: 9px 14px; border-radius: 6px; font-size: 13px; opacity: 0; transition: opacity .2s; pointer-events: none; z-index: 50; max-width: calc(100vw - 32px); }
 #toast.show { opacity: 1; }
 #toast.error { background: var(--danger); }

@@ -170,3 +170,57 @@ revoke all on function public.is_admin() from public, anon;
 revoke all on function public.admin_reset_password(text, text) from public, anon;
 grant execute on function public.is_admin() to authenticated;
 grant execute on function public.admin_reset_password(text, text) to authenticated;
+
+-- ---------------------------------------------------------------------------
+-- Feedback: reviews, bug reports and feature requests.
+-- Users insert and read their own; admins read all and set status / reply.
+-- ---------------------------------------------------------------------------
+create table if not exists public.feedback (
+  id          uuid primary key default gen_random_uuid(),
+  user_id     uuid not null default auth.uid() references auth.users (id) on delete cascade,
+  email       text not null default '',
+  kind        text not null check (kind in ('review', 'bug', 'feature')),
+  rating      smallint check (rating between 1 and 5),
+  message     text not null check (char_length(message) between 1 and 4000),
+  context     jsonb not null default '{}'::jsonb,          -- browser / screen info for bug reports
+  status      text not null default 'new' check (status in ('new', 'in_progress', 'done', 'wont_fix')),
+  admin_reply text not null default '' check (char_length(admin_reply) <= 4000),
+  created_at  timestamptz not null default now(),
+  updated_at  timestamptz not null default now()
+);
+create index if not exists feedback_created_idx on public.feedback (created_at desc);
+create index if not exists feedback_user_idx on public.feedback (user_id);
+alter table public.feedback enable row level security;
+
+drop policy if exists "feedback insert own" on public.feedback;
+drop policy if exists "feedback read own or admin" on public.feedback;
+drop policy if exists "feedback admin update" on public.feedback;
+create policy "feedback insert own" on public.feedback for insert to authenticated
+  with check (user_id = (select auth.uid()));
+create policy "feedback read own or admin" on public.feedback for select to authenticated
+  using (user_id = (select auth.uid()) or public.is_admin());
+create policy "feedback admin update" on public.feedback for update to authenticated
+  using (public.is_admin()) with check (public.is_admin());
+
+-- On insert: fill the sender's email, reset admin-only fields, and allow at most
+-- 20 messages per user per 24 hours.
+create or replace function public.feedback_before_insert()
+returns trigger language plpgsql security definer set search_path = '' as $$
+begin
+  if (select count(*) from public.feedback
+       where user_id = new.user_id and created_at > now() - interval '24 hours') >= 20 then
+    raise exception 'Too many feedback messages today. Please try again tomorrow.';
+  end if;
+  new.email := coalesce((select email from auth.users where id = new.user_id), '');
+  new.status := 'new';
+  new.admin_reply := '';
+  if new.kind <> 'review' then new.rating := null; end if;
+  return new;
+end $$;
+
+drop trigger if exists feedback_before_insert on public.feedback;
+create trigger feedback_before_insert before insert on public.feedback
+  for each row execute function public.feedback_before_insert();
+drop trigger if exists feedback_touch on public.feedback;
+create trigger feedback_touch before update on public.feedback
+  for each row execute function public.touch_updated_at();
