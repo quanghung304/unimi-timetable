@@ -1,6 +1,6 @@
 import { remember } from "./supabase.js";
 import * as api from "./api.js";
-import { parseWorkbook, planMerge } from "./importer.js";
+import { parseWorkbook, planMerge, alignCourseNames } from "./importer.js";
 import { renderWeek, drawNowLine, courseColors, esc } from "./grid.js";
 import { pad, toKey, fromKey, addDays, toMin, fmtMin, ddmm, mondayOf, currentWeekStart, weeklyDates } from "./dates.js";
 
@@ -163,7 +163,7 @@ function render() {
   const main = $("main");
   if (!state.sessions.length) {
     main.innerHTML = `<div class="empty"><h2>No timetable yet</h2>
-      <p>Import the Excel export of your timetable with <b>Import Excel</b>,
+      <p>Import the Excel export of your timetable (and exams) with <b>Import ▾</b>,
       or add lessons and exams by hand with <b>+ Add session</b>.</p>
       <p><button type="button" class="primary" data-open-guide>Show me how</button></p></div>`;
   } else {
@@ -173,6 +173,7 @@ function render() {
     renderWeek(main, ws, state.sessions.filter(s => keys.has(s.date)), courseColors(state.sessions), nDays, note);
   }
   fillDatalists();
+  renderReminder();
 }
 
 function fillDatalists() {
@@ -367,43 +368,116 @@ $("delBtn").onclick = () => {
   });
 };
 
-// ---------- import ----------
+// ---------- import (lessons or exams) ----------
+const KIND_LABEL = { lessons: "lessons timetable", exams: "exams" };
+let importKind = "lessons";
+
+function toggleImportPop(open) {
+  $("importPop").hidden = !open;
+  $("importBtn").setAttribute("aria-expanded", String(open));
+}
+$("importBtn").onclick = e => { e.stopPropagation(); toggleImportPop($("importPop").hidden); };
+$("importPop").addEventListener("click", e => {
+  const item = e.target.closest("[data-import]");
+  if (!item) return;
+  importKind = item.dataset.import;
+  toggleImportPop(false);
+  $("xlsFile").click();
+});
+document.addEventListener("click", () => toggleImportPop(false));
+document.addEventListener("keydown", e => { if (e.key === "Escape") toggleImportPop(false); });
+
 $("xlsFile").onchange = async e => {
   const file = e.target.files[0];
   e.target.value = "";
   if (!file) return;
   if (file.size > MAX_FILE_BYTES) return toast("File is too large (max 2 MB).", true);
-  const label = $("importLabel");
-  label.classList.add("disabled");
+  const btn = $("importBtn");
+  btn.disabled = true;
   try {
     const XLSX = await import(SHEETJS_URL);
-    const parsed = parseWorkbook(XLSX, await file.arrayBuffer());
+    const buf = await file.arrayBuffer();
+    let kind = importKind;
+    let parsed = parseWorkbook(XLSX, buf, kind);
+    // Guard against picking the wrong menu item (e.g. the exams file under "Lessons").
+    if (parsed.detected !== kind) {
+      if (!confirm(`This file looks like ${KIND_LABEL[parsed.detected]}, not ${KIND_LABEL[kind]}.\nImport it as ${KIND_LABEL[parsed.detected]}?`)) return;
+      kind = parsed.detected;
+      parsed = parseWorkbook(XLSX, buf, kind);
+    }
     if (!parsed.sessions.length) throw new Error("No sessions found in this file.");
-    const plan = planMerge(state.sessions, parsed.sessions);
+    if (kind === "exams") alignCourseNames(parsed.sessions, new Set(state.sessions.map(s => s.course)));
+    const plan = planMerge(state.sessions, parsed.sessions, kind);
     await api.applyImport(plan);
     state.sessions = await api.loadSessions();
-    await prefillProfile(parsed.meta);
+    await updateProfileAfterImport(parsed.meta, kind);
+    resetReminderDismissal();
     render();
-    toast(`Imported: ${plan.inserts.length} new, ${plan.updates.length} updated, ${plan.deletes.length} removed` +
+    toast(`${kind === "exams" ? "Exams" : "Lessons"} imported: ${plan.inserts.length} new, ${plan.updates.length} updated, ${plan.deletes.length} removed` +
       (plan.kept ? `, ${plan.kept} kept as you edited them` : ""));
   } catch (err) {
     toast("Import failed: " + errMsg(err), true);
   } finally {
-    label.classList.remove("disabled");
+    btn.disabled = false;
   }
 };
 
-// Fill empty profile fields from the export header (course, academic year, year of study).
-async function prefillProfile(meta) {
-  const patch = {};
-  for (const k of ["course_of_study", "academic_year", "year_of_study"])
-    if (meta[k] && !state.profile[k]) patch[k] = meta[k];
-  if (!Object.keys(patch).length) return;
-  try {
-    await api.saveProfile(state.user.id, patch);
-    Object.assign(state.profile, patch);
-  } catch { /* not critical */ }
+// Records the import date and fills empty profile fields from the lessons export header.
+async function updateProfileAfterImport(meta, kind) {
+  const patch = { [kind === "exams" ? "last_import_exams" : "last_import_lessons"]: new Date().toISOString() };
+  if (kind === "lessons")
+    for (const k of ["course_of_study", "academic_year", "year_of_study"])
+      if (meta[k] && !state.profile[k]) patch[k] = meta[k];
+  Object.assign(state.profile, patch);
+  try { await api.saveProfile(state.user.id, patch); }
+  catch {
+    // Older database without the last_import_* columns: keep the other fields at least.
+    const { last_import_lessons, last_import_exams, ...rest } = patch;
+    if (Object.keys(rest).length) await api.saveProfile(state.user.id, rest).catch(() => {});
+  }
 }
+
+// ---------- "timetables can change" reminder ----------
+// Shown above the grid once something was imported. "×" hides it for 7 days; it comes back
+// after the next import, and turns orange when the last import is older than 7 days.
+const DAY_MS = 86400000, STALE_DAYS = 7;
+const reminderKey = () => `tt.reminderHidden.${state.user?.id}`;
+const fmtDay = iso => new Date(iso).toLocaleDateString("en-GB");
+
+function resetReminderDismissal() {
+  try { localStorage.removeItem(reminderKey()); } catch { /* ignore */ }
+}
+function renderReminder() {
+  const box = $("reminder"), p = state.profile || {};
+  const hasImported = state.sessions.some(s => s.source === "import");
+  let hiddenAt = 0;
+  try { hiddenAt = +localStorage.getItem(reminderKey()) || 0; } catch { /* ignore */ }
+  const lastImport = Math.max(...[p.last_import_lessons, p.last_import_exams].filter(Boolean).map(d => +new Date(d)), 0);
+  const stale = lastImport && Date.now() - lastImport > STALE_DAYS * DAY_MS;
+  if (!hasImported || (Date.now() - hiddenAt < STALE_DAYS * DAY_MS && !stale)) { box.hidden = true; return; }
+  const dates = [
+    p.last_import_lessons ? `Lessons imported on <b>${fmtDay(p.last_import_lessons)}</b>` : "",
+    p.last_import_exams ? `Exams imported on <b>${fmtDay(p.last_import_exams)}</b>` : "",
+  ].filter(Boolean).join(" · ");
+  const ago = stale ? `⚠ Your last import was ${Math.floor((Date.now() - lastImport) / DAY_MS)} days ago. ` : "";
+  box.classList.toggle("stale", !!stale);
+  box.innerHTML = `<span>🔄</span><span class="grow">${ago}${dates ? dates + ". " : ""}
+    Timetables can change during the semester — please check your university website once a week and
+    <button type="button" class="link" data-reminder-import>import again</button> if anything changed.
+    Your notes and edits will not be lost.</span>
+    <button type="button" data-reminder-close title="Hide for 7 days" aria-label="Hide reminder">×</button>`;
+  box.hidden = false;
+}
+$("reminder").addEventListener("click", e => {
+  if (e.target.closest("[data-reminder-close]")) {
+    try { localStorage.setItem(reminderKey(), String(Date.now())); } catch { /* ignore */ }
+    $("reminder").hidden = true;
+  } else if (e.target.closest("[data-reminder-import]")) {
+    e.stopPropagation();
+    toggleImportPop(true);
+    $("importBtn").focus();
+  }
+});
 
 // ---------- how-to guide ----------
 // Shown automatically once per account: it is marked as seen as soon as it opens
@@ -443,11 +517,11 @@ $("guideClose").onclick = () => guideDlg.close();
 $("helpBtn").onclick = () => openGuide();
 $("main").addEventListener("click", e => { if (e.target.closest("[data-open-guide]")) openGuide(); });
 
-// Template for students of other universities: same layout as the UniMi export.
-$("templateBtn").onclick = async () => {
-  try {
-    const XLSX = await import(SHEETJS_URL);
-    const sheet = XLSX.utils.aoa_to_sheet([
+// Templates for students of other universities: same layout as the UniMi exports.
+const TEMPLATES = {
+  lessons: {
+    file: "lessons-template.xlsx",
+    rows: [
       ["Academic year: 2026/2027"],
       ["Course of study: <your course of study>"],
       ["Year of study: 1"],
@@ -456,23 +530,45 @@ $("templateBtn").onclick = async () => {
       ["Monday", "12-10-2026", "09:30 - 11:30", "Microeconomics", "Rossi Mario", "", "Aula 1", ""],
       ["Monday", "12-10-2026", "14:30 - 18:30", "Data Analysis Lab", "Bianchi Anna", "", "Lab 3", "4h block: shown as two 2h slots"],
       ["Wednesday", "14-10-2026", "11:30 - 13:30", "Microeconomics", "Rossi Mario", "", "Aula 1", ""],
-    ]);
+    ],
+    help: "• One row per lesson, below the header row (Weekday, Day, Hour, Course…). Don't rename or move the header.",
+  },
+  exams: {
+    file: "exams-template.xlsx",
+    rows: [
+      ["From 01-11-2026  to  28-02-2027"],
+      [], [], [], [], [],
+      ["Weekday", "Date", "Hour", "Course", "Lecturer", "Academic trail", "Room and site", "Notes"],
+      ["Wednesday", "04-11-2026", "10:30 - 12:30", "Microeconomics", "Rossi Mario", "", "Aula 1", "Written exam"],
+      ["Wednesday", "09-12-2026", "15:30 - 18:30", "Data Analysis Lab", "Bianchi Anna", "", "Lab 3", "Exams are kept whole (not split)"],
+    ],
+    help: "• One row per exam, below the header row (Weekday, Date, Hour, Course…). Don't rename or move the header.",
+  },
+};
+
+$("guideDlg").addEventListener("click", async e => {
+  const btn = e.target.closest("[data-template]");
+  if (!btn) return;
+  const t = TEMPLATES[btn.dataset.template];
+  try {
+    const XLSX = await import(SHEETJS_URL);
+    const sheet = XLSX.utils.aoa_to_sheet(t.rows);
     sheet["!cols"] = [11, 12, 15, 34, 22, 14, 16, 32].map(wch => ({ wch }));
     const help = XLSX.utils.aoa_to_sheet([
       ["How to fill in this template"],
-      ["• One row per session (lesson or exam), below the header row (Weekday, Day, Hour, Course…). Don't rename or move the header."],
-      ["• Day: dd-mm-yyyy, e.g. 12-10-2026.   Hour: HH:MM - HH:MM in 24-hour time, e.g. 14:30 - 16:30."],
+      [t.help],
+      ["• Day/Date: dd-mm-yyyy, e.g. 12-10-2026.   Hour: HH:MM - HH:MM in 24-hour time, e.g. 14:30 - 16:30."],
       ["• Course is required. Weekday, Lecturer, Academic trail, Room and Notes are optional."],
-      ["• Rows 1–3 (Academic year, Course of study, Year of study) fill in your profile; you can leave them out."],
       ["• Replace the example rows with your own. Only the first sheet is imported."],
+      ["• Import it with Import ▾ → " + (btn.dataset.template === "exams" ? "Exams." : "Lessons timetable.")],
     ]);
     help["!cols"] = [{ wch: 110 }];
     const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, sheet, "Timetable");
+    XLSX.utils.book_append_sheet(wb, sheet, btn.dataset.template === "exams" ? "Exams" : "Timetable");
     XLSX.utils.book_append_sheet(wb, help, "How to fill in");
-    XLSX.writeFile(wb, "timetable-template.xlsx");
+    XLSX.writeFile(wb, t.file);
   } catch (ex) { toast("Could not create the template: " + errMsg(ex), true); }
-};
+});
 
 // ---------- feedback ----------
 const fbDlg = $("feedbackDlg"), fbForm = $("fbForm");

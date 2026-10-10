@@ -85,6 +85,8 @@ main { padding: 16px; flex: 1; min-height: 0; display: flex; flex-direction: col
 .event .info { color: #374151; overflow: hidden; }
 .event .note { margin-top: auto; background: var(--note-bg); color: var(--note-text); border: 1px solid var(--note-border); border-radius: 4px; padding: 2px 5px; font-style: italic; white-space: pre-wrap; overflow: hidden; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; flex-shrink: 0; }
 .event .badge { position: absolute; top: 3px; right: 4px; font-size: 10px; color: var(--muted); }
+.event.exam { border-width: 2px; border-left-width: 6px; box-shadow: inset 0 0 0 1px rgba(255,255,255,.6); }
+.event .exam-tag { align-self: flex-start; background: #b91c1c; color: #fff; font-size: 10px; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; border-radius: 4px; padding: 0 5px; }
 .event.conflict { outline: 2px dashed #dc2626; outline-offset: -2px; }
 .now-line { position: absolute; height: 2px; background: var(--now); z-index: 5; pointer-events: none; }
 .now-line::before { content: ""; position: absolute; left: -5px; top: -4px; width: 10px; height: 10px; border-radius: 50%; background: var(--now); }
@@ -157,6 +159,19 @@ dialog.admin { width: min(720px, calc(100vw - 32px)); }
 .popover .check { align-items: flex-start; }
 .popover .check input { margin-top: 3px; }
 .popover small { display: block; color: var(--muted); }
+
+.popover.left { left: 0; right: auto; }
+.menu-item { display: grid; gap: 1px; text-align: left; border: none; background: none; padding: 6px 8px; border-radius: 6px; }
+.menu-item:hover { background: #f0f2f5; }
+.menu-item small { color: var(--muted); font-size: 12px; }
+
+/* ---------- re-import reminder ---------- */
+.reminder { flex: none; margin: 12px 16px 0; padding: 8px 12px; border-radius: 8px; background: #eef4ff; border: 1px solid #c7d7fe; color: #1e3a8a; font-size: 13px; display: flex; gap: 10px; align-items: flex-start; }
+.reminder.stale { background: #fff7ed; border-color: #fed7aa; color: #9a3412; }
+.reminder .grow { flex: 1; }
+.reminder button { border: none; background: none; padding: 0 4px; color: inherit; font-size: 16px; line-height: 1; }
+.reminder button.link { font-size: 13px; text-decoration: underline; padding: 0; }
+@media print { .reminder { display: none; } }
 
 #toast { position: fixed; bottom: 16px; left: 50%; transform: translateX(-50%); background: #111827; color: #fff; padding: 9px 14px; border-radius: 6px; font-size: 13px; opacity: 0; transition: opacity .2s; pointer-events: none; z-index: 50; max-width: calc(100vw - 32px); }
 #toast.show { opacity: 1; }
