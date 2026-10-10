@@ -33,8 +33,10 @@ function parseDateCell(v) {
 // rows: array of arrays (first sheet). Returns { meta, sessions }.
 export function parseRows(rows) {
   const cell = v => String(v ?? "").trim();
-  const hi = rows.findIndex(r => r.some(c => /^weekday$/i.test(cell(c))) && r.some(c => /^course$/i.test(cell(c))));
-  if (hi < 0) throw new Error("This doesn't look like a UniMi timetable export (header row Weekday / Day / Hour / Course… not found).");
+  // Header row = the row with Day, Hour and Course columns (UniMi export or our template).
+  const isHeader = r => ["day", "hour", "course"].every(h => r.some(c => cell(c).toLowerCase() === h));
+  const hi = rows.findIndex(isHeader);
+  if (hi < 0) throw new Error("Header row not found. The file needs columns named Day, Hour and Course (see the template in Help).");
   const header = rows[hi].map(c => cell(c).toLowerCase());
   const col = name => header.indexOf(name);
   const c = { day: col("day"), hour: col("hour"), course: col("course"), lecturer: col("lecturer"), room: col("room"), notes: col("notes") };
@@ -53,7 +55,8 @@ export function parseRows(rows) {
   const sessions = [], seen = new Set();
   for (const r of body) {
     const date = parseDateCell(r[c.day]);
-    const hm = cell(r[c.hour]).match(/(\d{1,2}:\d{2})\s*-\s*(\d{1,2}:\d{2})/);
+    // "14:30 - 16:30"; also accepts "14.30-16.30" and en/em dashes.
+    const hm = cell(r[c.hour]).replace(/(\d)\.(\d{2})/g, "$1:$2").match(/(\d{1,2}:\d{2})\s*[-–—]\s*(\d{1,2}:\d{2})/);
     const course = cell(r[c.course]).slice(0, 200);
     if (!date || !hm || !course) continue;
     const start = fmtMin(toMin(hm[1])), end = fmtMin(toMin(hm[2]));

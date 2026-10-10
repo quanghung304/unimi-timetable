@@ -3,8 +3,8 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>UniMi Timetable</title>
-<meta name="description" content="Weekly timetable for University of Milan students — import your .xls export, edit lessons, add notes. Unofficial.">
+<title>University Timetable</title>
+<meta name="description" content="Weekly timetable for university students — import your Excel timetable, edit lessons and exams, add notes.">
 <link rel="stylesheet" href="css/style.css">
 <script type="module" src="js/app.js"></script>
 </head>
@@ -15,8 +15,8 @@
 <!-- ======================= Login ======================= -->
 <div id="view-login" class="center-view" hidden>
   <div class="card login-card">
-    <h1>UniMi Timetable</h1>
-    <p class="muted">Your weekly lesson grid, with your own edits and notes.</p>
+    <h1>University Timetable</h1>
+    <p class="muted">Your weekly timetable of lessons and exams, with your own edits and notes.</p>
 
     <div class="tabs" role="tablist">
       <button type="button" role="tab" id="tabSignIn" class="active" aria-selected="true">Sign in</button>
@@ -24,7 +24,7 @@
     </div>
 
     <form id="authForm" novalidate>
-      <label>University email
+      <label>Email
         <input type="email" id="authEmail" placeholder="name.surname@studenti.unimi.it" autocomplete="email" required>
       </label>
       <label>Password
@@ -46,30 +46,42 @@
 <!-- ======================= App ======================= -->
 <div id="view-app" hidden>
   <header class="topbar">
-    <div class="brand">UniMi Timetable</div>
+    <div class="brand">University Timetable</div>
     <nav class="weeknav">
       <button id="prevWeek" title="Previous week (←)" aria-label="Previous week">‹</button>
       <button id="thisWeek">This week</button>
       <button id="nextWeek" title="Next week (→)" aria-label="Next week">›</button>
       <span class="week-label" id="weekLabel"></span>
       <input type="date" id="jumpDate" title="Go to the week of…" aria-label="Go to date">
+      <div class="view-menu">
+        <button type="button" id="weekendBtn" aria-haspopup="true" aria-expanded="false" title="Show or hide Saturday and Sunday">Weekend: Auto ▾</button>
+        <div class="popover" id="weekendPop" role="menu" hidden>
+          <b class="small">Saturday &amp; Sunday</b>
+          <label class="check"><input type="radio" name="weekend" value="auto"> <span>Auto<small>Show only in weeks that have weekend sessions</small></span></label>
+          <label class="check"><input type="radio" name="weekend" value="show"> <span>Always show</span></label>
+          <label class="check"><input type="radio" name="weekend" value="hide"> <span>Always hide</span></label>
+        </div>
+      </div>
     </nav>
     <div class="actions-bar">
-      <button class="primary" id="addBtn">+ Add lesson</button>
-      <label class="btn" id="importLabel" for="xlsFile">Import .xls</label>
-      <input type="file" id="xlsFile" accept=".xls,.xlsx" hidden>
+      <button class="primary" id="addBtn" title="Add a lesson, exam or other session">+ Add session</button>
+      <label class="btn" id="importLabel" for="xlsFile">Import Excel</label>
+      <input type="file" id="xlsFile" accept=".xls,.xlsx,.csv" hidden>
+      <button id="helpBtn" title="How to use">? Help</button>
+      <button id="feedbackBtn" title="Review, report a bug or request a feature">💬 Feedback</button>
+      <button id="adminBtn" title="Admin: users and feedback" hidden>🛠 Admin</button>
       <button id="profileBtn" title="Profile"><span id="userName"></span></button>
       <button id="signOutBtn">Sign out</button>
     </div>
   </header>
   <main id="main"></main>
-  <footer class="site-footer">© 2026 Hung Cao · UniMi Timetable — unofficial student project, not affiliated with Università degli Studi di Milano.</footer>
+  <footer class="site-footer">© 2026 Hung Cao · University Timetable — unofficial student project, not affiliated with Università degli Studi di Milano.</footer>
 </div>
 
-<!-- ======================= Edit lesson ======================= -->
+<!-- ======================= Edit session ======================= -->
 <dialog id="editDlg">
   <form id="editForm">
-    <h3 id="editTitle">Edit lesson</h3>
+    <h3 id="editTitle">Edit session</h3>
     <label>Course <input name="course" list="courseList" maxlength="200" required></label>
     <div class="row3">
       <label><span id="dateLabel">Date</span> <input type="date" name="date" required></label>
@@ -85,15 +97,17 @@
           <label class="day-chip"><input type="checkbox" value="2"> Wed</label>
           <label class="day-chip"><input type="checkbox" value="3"> Thu</label>
           <label class="day-chip"><input type="checkbox" value="4"> Fri</label>
+          <label class="day-chip"><input type="checkbox" value="5"> Sat</label>
+          <label class="day-chip"><input type="checkbox" value="6"> Sun</label>
         </div>
         <label>Until (last day) <input type="date" id="repeatUntil"></label>
         <p class="muted small" id="repeatPreview"></p>
       </div>
     </fieldset>
     <fieldset class="box" id="scopeBox" hidden>
-      <span class="small">This lesson is part of a weekly series. Save / delete:</span>
-      <label class="check"><input type="radio" name="scope" value="one" checked> This lesson only</label>
-      <label class="check"><input type="radio" name="scope" value="following"> This and all following lessons</label>
+      <span class="small">This session is part of a weekly series. Save / delete:</span>
+      <label class="check"><input type="radio" name="scope" value="one" checked> This session only</label>
+      <label class="check"><input type="radio" name="scope" value="following"> This and all following sessions</label>
     </fieldset>
     <label>Lecturer <input name="lecturer" list="lecturerList" maxlength="300"></label>
     <div class="row2">
@@ -108,7 +122,7 @@
         </select>
       </label>
     </div>
-    <label>Note <textarea name="note" maxlength="2000" placeholder="Anything to remember for this lesson…"></textarea></label>
+    <label>Note <textarea name="note" maxlength="2000" placeholder="Anything to remember for this session…"></textarea></label>
     <div class="err" id="editErr"></div>
     <div class="dlg-actions">
       <button type="button" class="danger push-left" id="delBtn">Delete</button>
@@ -118,12 +132,134 @@
   </form>
 </dialog>
 
+<!-- ======================= How-to guide ======================= -->
+<dialog id="guideDlg" class="guide">
+  <div class="guide-body">
+    <h3>How to use University Timetable</h3>
+    <p class="muted small">Import your timetable once, then see it week by week. Click a session to edit it or add a note.</p>
+
+    <div class="tabs" role="tablist">
+      <button type="button" role="tab" class="active" aria-selected="true" data-guide="unimi">UniMi students</button>
+      <button type="button" role="tab" aria-selected="false" data-guide="other">Other universities</button>
+    </div>
+
+    <section data-guide-panel="unimi">
+      <ol class="steps">
+        <li>Sign in to <b>Orari</b>, UniMi's timetable website.</li>
+        <li>Choose the timetable of <b>your course of study</b> (and year).</li>
+        <li>Switch to the <b>Events List</b> view.</li>
+        <li>Click <b>Export Excel</b> — you get an <code>.xls</code> file.</li>
+        <li>Here, click <b>Import Excel</b> and choose that file.</li>
+      </ol>
+    </section>
+
+    <section data-guide-panel="other" hidden>
+      <ol class="steps">
+        <li>Download the template: <button type="button" class="link" id="templateBtn">timetable-template.xlsx</button></li>
+        <li>Fill in <b>one row per session</b> (lesson or exam) under the header row:
+          <b>Day</b> as <code>dd-mm-yyyy</code>, <b>Hour</b> as <code>HH:MM - HH:MM</code> (24-hour), <b>Course</b>.
+          Lecturer, Room and Notes are optional. Don't rename the header.</li>
+        <li>Save the file (.xlsx, .xls or .csv).</li>
+        <li>Here, click <b>Import Excel</b> and choose that file.</li>
+      </ol>
+    </section>
+
+    <div class="tips">
+      <b>Good to know</b>
+      <ul>
+        <li>4-hour (or 6-hour) blocks are split into 2-hour slots.</li>
+        <li>Importing a newer file again keeps your notes and edits.</li>
+        <li>Exams or extra courses (e.g. a language class)? <b>+ Add session</b>; for a weekly class tick <b>Repeat weekly</b>.</li>
+        <li>Open this guide again any time with <b>? Help</b>.</li>
+      </ul>
+    </div>
+    <div class="dlg-actions">
+      <button type="button" class="primary" id="guideClose" autofocus>Got it</button>
+    </div>
+  </div>
+</dialog>
+
+<!-- ======================= Feedback ======================= -->
+<dialog id="feedbackDlg" class="guide">
+  <div class="guide-body">
+    <h3>Feedback</h3>
+    <div class="tabs" role="tablist">
+      <button type="button" role="tab" class="active" data-fb-tab="send">Send</button>
+      <button type="button" role="tab" data-fb-tab="mine">My feedback</button>
+    </div>
+
+    <form id="fbForm" data-fb-panel="send" class="fb-form">
+      <div class="weekdays" role="radiogroup" aria-label="Type">
+        <label class="day-chip"><input type="radio" name="kind" value="review" checked> ⭐ Review</label>
+        <label class="day-chip"><input type="radio" name="kind" value="bug"> 🐞 Bug report</label>
+        <label class="day-chip"><input type="radio" name="kind" value="feature"> 💡 Feature request</label>
+      </div>
+      <div id="fbRating" class="stars" role="radiogroup" aria-label="Rating">
+        <span class="small muted">Your rating:</span>
+        <button type="button" data-star="1" aria-label="1 star">★</button>
+        <button type="button" data-star="2" aria-label="2 stars">★</button>
+        <button type="button" data-star="3" aria-label="3 stars">★</button>
+        <button type="button" data-star="4" aria-label="4 stars">★</button>
+        <button type="button" data-star="5" aria-label="5 stars">★</button>
+      </div>
+      <label><span id="fbMsgLabel">Your review</span>
+        <textarea name="message" maxlength="4000" required autofocus></textarea>
+      </label>
+      <label class="check" id="fbContextWrap" hidden><input type="checkbox" name="withContext" checked>
+        Include technical info (browser, screen size) to help fix the bug</label>
+      <div class="err" id="fbErr"></div>
+      <div class="dlg-actions">
+        <button type="button" class="fb-close">Close</button>
+        <button class="primary" id="fbSend">Send</button>
+      </div>
+    </form>
+
+    <section data-fb-panel="mine" hidden>
+      <div id="fbMine" class="fb-list"></div>
+      <div class="dlg-actions"><button type="button" class="fb-close">Close</button></div>
+    </section>
+  </div>
+</dialog>
+
+<!-- ======================= Admin ======================= -->
+<dialog id="adminDlg" class="guide admin">
+  <div class="guide-body">
+    <h3>Admin</h3>
+    <div class="tabs" role="tablist">
+      <button type="button" role="tab" class="active" data-admin-tab="users">Users</button>
+      <button type="button" role="tab" data-admin-tab="feedback">Feedback</button>
+    </div>
+
+    <section data-admin-panel="users">
+      <input type="search" id="userSearch" placeholder="Search by email, name or university…" aria-label="Search users" autofocus>
+      <p class="small muted" id="userSummary"></p>
+      <div id="userList" class="fb-list"></div>
+    </section>
+
+    <section data-admin-panel="feedback" hidden>
+      <div class="row2 eq">
+        <label>Type
+          <select id="fbFilterKind"><option value="">All</option><option value="review">Review</option><option value="bug">Bug</option><option value="feature">Feature</option></select>
+        </label>
+        <label>Status
+          <select id="fbFilterStatus"><option value="">All</option><option value="new">New</option><option value="in_progress">In progress</option><option value="done">Done</option><option value="wont_fix">Won't fix</option></select>
+        </label>
+      </div>
+      <p class="small muted" id="fbAdminSummary"></p>
+      <div id="fbAll" class="fb-list"></div>
+          </section>
+
+    <div class="dlg-actions"><button type="button" id="adminClose">Close</button></div>
+  </div>
+</dialog>
+
 <!-- ======================= Profile ======================= -->
 <dialog id="profileDlg">
   <form id="profileForm">
     <h3>Profile</h3>
     <label>Email <input name="email" readonly></label>
     <label>Full name <input name="full_name" maxlength="120" autocomplete="name"></label>
+    <label id="universityWrap">University <span class="muted">(optional)</span> <input name="university" maxlength="200" placeholder="e.g. Politecnico di Milano"></label>
     <label>Course of study <input name="course_of_study" maxlength="300" placeholder="e.g. Data Science for Economics and Health"></label>
     <div class="row2">
       <label>Academic year <input name="academic_year" maxlength="20" placeholder="2026/2027"></label>
@@ -145,18 +281,6 @@
       </div>
       <div class="err" id="passwordErr"></div>
       <button class="primary" id="passwordSave">Update password</button>
-    </details>
-  </form>
-  <form id="adminForm" class="sub-form" hidden>
-    <details>
-      <summary>Admin · reset a user's password</summary>
-      <p class="muted small">Sets a temporary password. Tell the student, and ask them to change it under Profile.</p>
-      <div class="row2 eq">
-        <label>User email <input type="email" name="email" placeholder="name.surname@studenti.unimi.it" required></label>
-        <label>Temporary password <input type="text" name="pw" minlength="6" autocomplete="off" required></label>
-      </div>
-      <div class="err" id="adminErr"></div>
-      <button class="primary" id="adminSave">Reset password</button>
     </details>
   </form>
   <form class="sub-form">

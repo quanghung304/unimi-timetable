@@ -35,7 +35,7 @@ export const adminResetPassword = (email, password) =>
   sb.rpc("admin_reset_password", { target_email: email, new_password: password }).then(check);
 
 // ---------- profile ----------
-export const loadProfile = () => sb.from("profiles").select("email,full_name,course_of_study,academic_year,year_of_study").single().then(check);
+export const loadProfile = () => sb.from("profiles").select("*").single().then(check);
 export const saveProfile = (userId, p) => sb.from("profiles").update(p).eq("id", userId).then(check);
 
 // ---------- sessions ----------
@@ -84,3 +84,18 @@ export async function applyImport({ inserts, updates, deletes }) {
   for (const c of chunks(deletes, 200))
     check(await sb.from("sessions").delete().in("id", c));
 }
+
+// ---------- feedback ----------
+const FB_COLS = "id,email,kind,rating,message,context,status,admin_reply,created_at,updated_at";
+export const submitFeedback = f => sb.from("feedback").insert(f).then(check);
+export const loadMyFeedback = userId =>
+  sb.from("feedback").select(FB_COLS).eq("user_id", userId).order("created_at", { ascending: false }).limit(100).then(check);
+export const loadAllFeedback = () =>   // admin only (RLS)
+  sb.from("feedback").select(FB_COLS).order("created_at", { ascending: false }).limit(500).then(check);
+export const updateFeedback = (id, patch) => sb.from("feedback").update(patch).eq("id", id).then(check);
+
+// ---------- admin: users ----------
+export const adminListUsers = () => sb.rpc("admin_list_users").then(check);
+export const adminSetAdmin = (id, make) => sb.rpc("admin_set_admin", { target: id, make }).then(check);
+export const adminSetBanned = (id, banned) => sb.rpc("admin_set_banned", { target: id, banned }).then(check);
+export const adminDeleteUser = id => sb.rpc("admin_delete_user", { target: id }).then(check);

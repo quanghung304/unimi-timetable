@@ -6,5 +6,7 @@
   "compatibility_date": "2026-09-01",
   "assets": {
     "directory": "."
-  }
+  },
+  // Required by `npx wrangler preview` (builds of non-production branches, e.g. dev).
+  "previews": {}
 }
